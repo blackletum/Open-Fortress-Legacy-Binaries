@@ -2662,6 +2662,17 @@ void DoEnginePostProcessing( int x, int y, int w, int h, bool bFlashlightIsOn, b
 			break;
 		}
 	}
+	
+
+	static IMaterial *pMat = materials->FindMaterial("effects/poison/toxicoverlay", TEXTURE_GROUP_OTHER);
+	if (pMat)
+	{
+		UpdateScreenEffectTexture();
+		pRenderContext->DrawScreenSpaceRectangle(pMat, 0, 0, w, h,
+			0, 0, w - 1, h - 1,
+			w, h);
+	}
+
 
 #if defined( _X360 )
 	pRenderContext->PopVertexShaderGPRAllocation();

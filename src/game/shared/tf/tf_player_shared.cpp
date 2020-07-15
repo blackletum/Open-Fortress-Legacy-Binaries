@@ -1875,7 +1875,7 @@ void CTFPlayerShared::OnAddPoison(void)
 	// set the poison screen overlay
 	if (m_pOuter->IsLocalPlayer())
 	{
-		IMaterial *pMaterial = materials->FindMaterial("effects/poison_overlay", TEXTURE_GROUP_CLIENT_EFFECTS, false);
+		IMaterial *pMaterial = materials->FindMaterial("effects/poison/toxicoverlay", TEXTURE_GROUP_CLIENT_EFFECTS, true);
 		if (!IsErrorMaterial(pMaterial))
 			view->SetScreenOverlayMaterial(pMaterial);
 	}
