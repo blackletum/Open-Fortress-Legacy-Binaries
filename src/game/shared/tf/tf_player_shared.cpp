@@ -920,6 +920,10 @@ void CTFPlayerShared::ConditionGameRulesThink( void )
 		// Reduce the duration of this poison
 		if ( InCond( TF_COND_POISON ) )
 			m_flPoisonRemoveTime -= 2.f * gpGlobals->frametime;
+
+		// Reduce the duration of this poison
+		if (InCond(TF_COND_TRANQ))
+			m_flTranqRemoveTime -= 2.f * gpGlobals->frametime;
 	}
 
 	if ( bDecayHealth )
@@ -1437,7 +1441,17 @@ void CTFPlayerShared::OnRemoveHaste( void )
 void CTFPlayerShared::OnAddTranq( void )
 {
 #ifdef CLIENT_DLL
-	m_pOuter->ParticleProp()->Create( "sleepy_overhead", PATTACH_POINT_FOLLOW, "head" );
+	if(!m_pOuter->m_Shared.m_flTranqEffects == 1)
+	{
+		m_pOuter->ParticleProp()->Create("sleepy_overhead", PATTACH_POINT_FOLLOW, "head");
+
+		if (m_pOuter->IsLocalPlayer() == true)
+			m_pOuter->StartTranqSound();
+	} 
+	else
+	{
+		m_pOuter->ParticleProp()->Create("mark_for_death", PATTACH_POINT_FOLLOW, "head");
+	}
 #endif
 	m_pOuter->TeamFortress_SetSpeed();
 }
@@ -1445,7 +1459,15 @@ void CTFPlayerShared::OnAddTranq( void )
 void CTFPlayerShared::OnRemoveTranq( void )
 {
 #ifdef CLIENT_DLL
-	m_pOuter->ParticleProp()->StopParticlesNamed( "sleepy_overhead", true );
+	if(!m_pOuter->m_Shared.m_flTranqEffects == 1)
+		{
+		m_pOuter->ParticleProp()->StopParticlesNamed("sleepy_overhead", true);
+		m_pOuter->StopTranqSound();
+		}
+	else
+		{
+		m_pOuter->ParticleProp()->StopParticlesNamed("mark_for_death", true);
+		}
 #endif
 	m_pOuter->TeamFortress_SetSpeed();
 }
@@ -1640,7 +1662,26 @@ void CTFPlayerShared::Poison( CTFPlayer *pAttacker, float flTime )
 	m_hPoisonAttacker = pAttacker;
 #endif
 }
+//-----------------------------------------------------------------------------
+// Purpose: 
+//-----------------------------------------------------------------------------
+void CTFPlayerShared::Tranq(CTFPlayer *pAttacker, float flTime, float flSpeed, float flEffects)
+{
+#ifdef GAME_DLL
+	m_flTranqSlowness = flSpeed;
 
+	if (!m_pOuter->IsAlive())
+		return;
+
+	if (!InCond(TF_COND_TRANQ))
+	{
+		// Start sloweness
+		AddCond(TF_COND_TRANQ, flTime);
+		m_flTranqTime = gpGlobals->curtime;    //asap
+		m_flTranqEffects = flEffects;
+	}
+#endif
+}
 //-----------------------------------------------------------------------------
 // Purpose:
 //-----------------------------------------------------------------------------
@@ -1684,14 +1725,11 @@ void CTFPlayerShared::OnRemoveBurning( void )
 void CTFPlayerShared::OnRemovePoison( void )
 {
 #ifdef CLIENT_DLL
-	if ( m_pOuter->IsLocalPlayer() )
-		view->SetScreenOverlayMaterial( NULL );
-	m_pOuter->ParticleProp()->StopParticlesNamed( "poison_overhead", true );
+	if (m_pOuter->IsLocalPlayer())
 
-	m_pOuter->m_flPoisonEffectStartTime = 0.f;
-	m_pOuter->m_flPoisonEffectEndTime = 0.f;
-
-	SetPoisonEffectEnabled( false );
+		view->SetScreenOverlayMaterial(NULL);
+		m_pOuter->ParticleProp()->StopParticlesNamed("poison_overhead", true);
+		SetPoisonEffectEnabled(false);
 #else
 	m_hPoisonAttacker = NULL;
 #endif
@@ -1864,13 +1902,18 @@ void CTFPlayerShared::OnAddPoison( void )
 	// set the poison screen overlay
 	if ( m_pOuter->IsLocalPlayer() )
 	{
-		//IMaterial *pMaterial = materials->FindMaterial("effects/poison/toxicoverlay", TEXTURE_GROUP_CLIENT_EFFECTS, true);
-//		if (!IsErrorMaterial(pMaterial))
-//			view->SetScreenOverlayMaterial(pMaterial);
-		SetPoisonEffectEnabled( true );
+		//SetPoisonEffectEnabled(true);
+		IMaterial *pMaterial = materials->FindMaterial( "effects/poison_overlay", TEXTURE_GROUP_CLIENT_EFFECTS, false );
+		if ( !IsErrorMaterial( pMaterial ) )
+		{
+			view->SetScreenOverlayMaterial( pMaterial );
+		}
+
+		C_BasePlayer *pLocal = C_BasePlayer::GetLocalPlayer();
+			pLocal->EmitSound("PlayerMedkitInfected");
 	}
 
-	m_pOuter->ParticleProp()->Create( "poison_overhead", PATTACH_POINT_FOLLOW, "head" );
+	m_pOuter->ParticleProp()->Create("poison_overhead", PATTACH_POINT_FOLLOW, "head");
 #endif
 }
 
@@ -2406,8 +2449,10 @@ void CTFPlayerShared::SetInvulnerable( bool bState, bool bInstant )
 		// remove any persistent damaging conditions
 		if ( InCond( TF_COND_BURNING ) )
 			RemoveCond( TF_COND_BURNING );
-		if ( InCond( TF_COND_POISON ) )
-			RemoveCond( TF_COND_POISON );
+		if(InCond( TF_COND_POISON ))
+			RemoveCond(TF_COND_POISON);
+		if (InCond(TF_COND_TRANQ))
+			RemoveCond(TF_COND_TRANQ);
 
 		CSingleUserRecipientFilter filter( m_pOuter );
 		m_pOuter->EmitSound( filter, m_pOuter->entindex(), "TFPlayer.InvulnerableOn" );
@@ -3172,8 +3217,8 @@ void CTFPlayer::TeamFortress_SetSpeed()
 	if ( m_Shared.InCond( TF_COND_HASTE ) )
 		maxfbspeed *= of_haste_movespeed_multplier.GetFloat();
 
-	if ( m_Shared.InCond( TF_COND_TRANQ ) )
-		maxfbspeed *= 0.5f;
+	if (m_Shared.InCond(TF_COND_TRANQ))
+		maxfbspeed *= m_Shared.m_flTranqSlowness;
 
 	// Set the speed
 	SetMaxSpeed( maxfbspeed );
