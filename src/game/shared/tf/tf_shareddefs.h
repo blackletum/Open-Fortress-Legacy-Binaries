@@ -26,18 +26,18 @@ class CTraceFilterIgnorePlayers : public CTraceFilterSimple
 {
 public:
 	// It does have a base, but we'll never network anything below here..
-	DECLARE_CLASS(CTraceFilterIgnorePlayers, CTraceFilterSimple);
+	DECLARE_CLASS( CTraceFilterIgnorePlayers, CTraceFilterSimple );
 
-	CTraceFilterIgnorePlayers(const IHandleEntity *passentity, int collisionGroup)
-		: CTraceFilterSimple(passentity, collisionGroup)
+	CTraceFilterIgnorePlayers( const IHandleEntity *passentity, int collisionGroup )
+		: CTraceFilterSimple( passentity, collisionGroup )
 	{
 	}
 
-	virtual bool ShouldHitEntity(IHandleEntity *pServerEntity, int contentsMask)
+	virtual bool ShouldHitEntity( IHandleEntity *pServerEntity, int contentsMask )
 	{
-		CBaseEntity *pEntity = EntityFromEntityHandle(pServerEntity);
+		CBaseEntity *pEntity = EntityFromEntityHandle( pServerEntity );
 
-		if (pEntity->IsPlayer())
+		if ( pEntity->IsPlayer() )
 		{
 			return false;
 		}
@@ -58,11 +58,11 @@ enum
 	TF_TEAM_COUNT,
 };
 
-inline int GetEnemyTeam(CBaseEntity *ent)
+inline int GetEnemyTeam( CBaseEntity *ent )
 {
 	int enemy_team = ent->GetTeamNumber();
 
-	switch (enemy_team)
+	switch ( enemy_team )
 	{
 	case TF_TEAM_RED:
 		enemy_team = TF_TEAM_BLUE;
@@ -81,7 +81,7 @@ inline int GetEnemyTeam(CBaseEntity *ent)
 
 #define TF_TEAM_AUTOASSIGN ( TF_TEAM_COUNT + 1 )
 
-bool IsTeamName(const char *name);
+bool IsTeamName( const char *name );
 
 extern const char *g_aTeamNames[TF_TEAM_COUNT];
 extern color32 g_aTeamColors[TF_TEAM_COUNT];
@@ -92,7 +92,7 @@ extern color32 g_aTeamColors[TF_TEAM_COUNT];
 #define CONTENTS_BLUETEAM	CONTENTS_TEAM2
 #define CONTENTS_MERCENARYTEAM	CONTENTS_TEAM0
 
-const char *GetRPCMapImage(char m_szLatchedMapname[MAX_MAP_NAME], const char *pMapIcon);
+const char *GetRPCMapImage( char m_szLatchedMapname[MAX_MAP_NAME], const char *pMapIcon );
 
 // Team roles
 enum
@@ -198,8 +198,8 @@ extern const char *g_aLoadoutCategories[];
 extern const char *g_aArsenalConvarNames[];
 extern const char *g_aLoadoutConvarNames[];
 
-bool IsPlayerClassName(const char *name);
-int GetClassIndexFromString(const char *name, int maxClass);
+bool IsPlayerClassName( const char *name );
+int GetClassIndexFromString( const char *name, int maxClass );
 
 //-----------------------------------------------------------------------------
 // For entity_capture_flags to use when placed in the world
@@ -251,9 +251,9 @@ extern const char *g_aGameTypeNames[];	// localized gametype names
 //-----------------------------------------------------------------------------
 enum
 {
-	TF_BUILDING_SENTRY = (1 << 0),
-	TF_BUILDING_DISPENSER = (1 << 1),
-	TF_BUILDING_TELEPORT = (1 << 2),
+	TF_BUILDING_SENTRY = ( 1 << 0 ),
+	TF_BUILDING_DISPENSER = ( 1 << 1 ),
+	TF_BUILDING_TELEPORT = ( 1 << 2 ),
 };
 
 //-----------------------------------------------------------------------------
@@ -262,12 +262,12 @@ enum
 enum
 {
 	TF_ITEM_UNDEFINED = 0,
-	TF_ITEM_CAPTURE_FLAG = (1 << 0),
-	TF_ITEM_HEALTH_KIT = (1 << 1),
-	TF_ITEM_ARMOR = (1 << 2),
-	TF_ITEM_AMMO_PACK = (1 << 3),
-	TF_ITEM_GRENADE_PACK = (1 << 4),
-	TF_ITEM_WEAPON_SPAWNER = (1 << 5),
+	TF_ITEM_CAPTURE_FLAG = ( 1 << 0 ),
+	TF_ITEM_HEALTH_KIT = ( 1 << 1 ),
+	TF_ITEM_ARMOR = ( 1 << 2 ),
+	TF_ITEM_AMMO_PACK = ( 1 << 3 ),
+	TF_ITEM_GRENADE_PACK = ( 1 << 4 ),
+	TF_ITEM_WEAPON_SPAWNER = ( 1 << 5 ),
 };
 
 //-----------------------------------------------------------------------------
@@ -289,13 +289,13 @@ enum
 	TF_AMMO_COUNT
 };
 
-int AliasToWeaponID(const char *alias);
-bool IsExplosiveProjectile(const char *alias);
+int AliasToWeaponID( const char *alias );
+bool IsExplosiveProjectile( const char *alias );
 
-bool WeaponID_IsSniperRifle(int iWeaponID);
-bool WeaponID_IsRocketWeapon(int iWeaponID);
-bool WeaponID_IsGrenadeWeapon(int iWeaponID);
-bool WeaponID_IsMeleeWeapon(int iWeaponID);
+bool WeaponID_IsSniperRifle( int iWeaponID );
+bool WeaponID_IsRocketWeapon( int iWeaponID );
+bool WeaponID_IsGrenadeWeapon( int iWeaponID );
+bool WeaponID_IsMeleeWeapon( int iWeaponID );
 
 //-----------------------------------------------------------------------------
 // Grenade Launcher mode (for pipebombs).
@@ -496,13 +496,13 @@ extern uint g_aWeaponDamageTypes[];
 extern const char *g_aGrenadeNames[];
 extern uint g_aGrenadeDamageTypes[];
 
-int GetWeaponId(const char *pszWeaponName);
+int GetWeaponId( const char *pszWeaponName );
 #ifdef GAME_DLL
-int GetWeaponFromDamage(const CTakeDamageInfo &info);
+int GetWeaponFromDamage( const CTakeDamageInfo &info );
 #endif
-int GetBuildableId(const char *pszBuildableName);
-const char *WeaponIdToAlias(int iWeapon);
-const char *WeaponIdToClassname(int iWeapon);
+int GetBuildableId( const char *pszBuildableName );
+const char *WeaponIdToAlias( int iWeapon );
+const char *WeaponIdToClassname( int iWeapon );
 
 enum
 {
@@ -1214,7 +1214,7 @@ enum
 enum
 {
 	BUILDER_OBJECT_BITS = 8,
-	BUILDER_INVALID_OBJECT = ((1 << BUILDER_OBJECT_BITS) - 1)
+	BUILDER_INVALID_OBJECT = ( ( 1 << BUILDER_OBJECT_BITS ) - 1 )
 };
 
 // Analyzer state
@@ -1272,9 +1272,9 @@ enum
 
 #define	MAX_CABLE_CONNECTIONS 4
 
-bool IsObjectAnUpgrade(int iObjectType);
-bool IsObjectAVehicle(int iObjectType);
-bool IsObjectADefensiveBuilding(int iObjectType);
+bool IsObjectAnUpgrade( int iObjectType );
+bool IsObjectAVehicle( int iObjectType );
+bool IsObjectADefensiveBuilding( int iObjectType );
 
 class CHudTexture;
 
@@ -1283,7 +1283,7 @@ class CHudTexture;
 class CObjectInfo
 {
 public:
-	CObjectInfo(char *pObjectName);
+	CObjectInfo( char *pObjectName );
 	~CObjectInfo();
 
 	// This is initialized by the code and matched with a section in objects.txt
@@ -1328,14 +1328,14 @@ public:
 
 // Loads the objects.txt script.
 class IBaseFileSystem;
-void LoadObjectInfos(IBaseFileSystem *pFileSystem);
+void LoadObjectInfos( IBaseFileSystem *pFileSystem );
 
 // Get a CObjectInfo from a TFOBJ_ define.
-const CObjectInfo* GetObjectInfo(int iObject);
+const CObjectInfo* GetObjectInfo( int iObject );
 
 // Object utility funcs
-int		CalculateObjectCost(int iObjectType /*, int iNumberOfObjects, int iTeam, bool bLast = false*/);
-int		CalculateObjectUpgrade(int iObjectType, int iObjectLevel);
+int		CalculateObjectCost( int iObjectType /*, int iNumberOfObjects, int iTeam, bool bLast = false*/ );
+int		CalculateObjectUpgrade( int iObjectType, int iObjectLevel );
 
 // Shell ejections
 enum
@@ -1375,9 +1375,9 @@ typedef enum
 	NUM_STOCK_NOTIFICATIONS
 } HudNotification_t;
 
-bool IsSpaceToSpawnHere(const Vector &vecPos);
+bool IsSpaceToSpawnHere( const Vector &vecPos );
 
-void BuildBigHeadTransformation(CBaseAnimating *pAnimating, CStudioHdr *pStudio, Vector *pos, Quaternion *q, matrix3x4_t const &cameraTransformation, int boneMask, CBoneBitList &boneComputed, float flScale);
+void BuildBigHeadTransformation( CBaseAnimating *pAnimating, CStudioHdr *pStudio, Vector *pos, Quaternion *q, matrix3x4_t const &cameraTransformation, int boneMask, CBoneBitList &boneComputed, float flScale );
 
 
 #endif // TF_SHAREDDEFS_H
