@@ -344,9 +344,13 @@ void CTFProjectile_Tranq::ProjectileTouch(CBaseEntity *pOther)
 	{
 		CTFPlayer *pPlayer = ToTFPlayer(pOther);
 
+		WEAPON_FILE_INFO_HANDLE	hWpnInfo = LookupWeaponInfoSlot(pInflictor->GetClassname());
+		Assert(hWpnInfo != GetInvalidWeaponInfoHandle());
+		CTFWeaponInfo *pWeaponInfo = dynamic_cast<CTFWeaponInfo*>(GetFileWeaponInfoFromHandle(hWpnInfo));
+
 		if ((ToTFPlayer(GetOwnerEntity())->GetTeamNumber() != pPlayer->GetTeamNumber()) || (ToTFPlayer(GetOwnerEntity())->GetTeamNumber() && pPlayer->GetTeamNumber() == TF_TEAM_MERCENARY))
 		{
-			pPlayer->m_Shared.Tranq(ToTFPlayer(GetOwnerEntity()), 12.0f, 0.5f, 1);
+			pPlayer->m_Shared.Tranq(ToTFPlayer(GetOwnerEntity()), (pWeaponInfo->m_flEffectDuration), (pWeaponInfo->m_flSpeedReduction), (pWeaponInfo->m_iTranqOrLeg));
 		}
 	}
 }

@@ -2542,6 +2542,8 @@ C_TFPlayer::C_TFPlayer() :
 	m_flBurnEffectEndTime = 0;
 	m_pDisguisingEffect = NULL;
 	m_pSaveMeEffect = NULL;
+	m_pTranqEffect = NULL;
+	m_pPoisonEffect = NULL;
 
 	m_pChattingEffect = NULL;
 	m_bChatting = false;
@@ -2849,6 +2851,26 @@ void C_TFPlayer::OnDataChanged( DataUpdateType_t updateType )
 	
 	// update the chat bubble on the player (when he is typing a chat message)
 	CreateChattingEffect();
+
+	if ( m_Shared.InCond(TF_COND_POISON) && !m_pPoisonEffect )
+	{
+		CreatePoisonEffect();
+	}
+
+	//if (!m_Shared.InCond(TF_COND_POISON) && m_pPoisonEffect)
+	//{
+	//	DestoryPoisonEffect();
+	//}
+
+	if (m_Shared.InCond(TF_COND_TRANQ) && !m_pTranqEffect)
+	{
+		CreateTranqEffect();
+	}
+
+	//if (!m_Shared.InCond(TF_COND_TRANQ) && m_pTranqEffect)
+	//{
+	//	DestoryTranqEffect();
+	//}
 
 	if ( m_bSaveMeParity != m_bOldSaveMeParity )
 	{
@@ -3745,6 +3767,32 @@ void C_TFPlayer::ClientThink()
 			ParticleProp()->StopEmissionAndDestroyImmediately( m_pSaveMeEffect );
 			m_pSaveMeEffect = NULL;
 		}
+	}
+	
+	if (m_pPoisonEffect &&
+		(!IsAlive() ||(GetPercentInvisible() > 0) || !m_Shared.InCond(TF_COND_POISON))
+		)
+	{
+		// Kill the effect if either
+		// a) the player is dead
+		// b) the spy is now invisible
+		// c) if player is no longer poisoned
+			ParticleProp()->StopEmissionAndDestroyImmediately(m_pPoisonEffect);
+			m_pPoisonEffect = NULL;
+	
+	}
+
+	if (m_pTranqEffect &&
+		(!IsAlive() || (GetPercentInvisible() > 0) || !m_Shared.InCond(TF_COND_TRANQ))
+		)
+	{
+		// Kill the effect if either
+		// a) the player is dead
+		// b) the spy is now invisible
+		// c) if player is no longer tranqed
+		ParticleProp()->StopEmissionAndDestroyImmediately(m_pTranqEffect);
+		m_pTranqEffect = NULL;
+
 	}
 
 	if ( m_pChattingEffect )
@@ -5131,6 +5179,91 @@ void C_TFPlayer::CreateChattingEffect(void)
 			ParticleProp()->StopEmissionAndDestroyImmediately( m_pChattingEffect );
 			m_pChattingEffect = NULL;
 		}
+	}
+}
+//-----------------------------------------------------------------------------
+// Purpose:  Creation Of Poison Overhead Effect
+//-----------------------------------------------------------------------------
+void C_TFPlayer::CreatePoisonEffect(void)
+{
+	// Don't create them for the local player
+	if (IsLocalPlayer())
+		return;
+
+	// If I'm stealthed, don't create
+	if ((!m_Shared.InCondInvis()) && m_Shared.InCond(TF_COND_POISON) && IsAlive())
+	{
+		if (!m_pPoisonEffect)
+		{
+			m_pPoisonEffect = ParticleProp()->Create("poison_overhead", PATTACH_POINT_FOLLOW, "head");
+		}
+	}
+	else
+	{
+		if (m_pPoisonEffect)
+		{
+			ParticleProp()->StopEmissionAndDestroyImmediately(m_pPoisonEffect);
+			m_pPoisonEffect = NULL;
+		}
+	}
+}
+
+//-----------------------------------------------------------------------------
+// Purpose:  Killing Of Poison Overhead Effect
+//-----------------------------------------------------------------------------
+void C_TFPlayer::DestoryPoisonEffect(void)
+{
+	// Don't create them for the local player
+	if (m_pPoisonEffect)
+	{
+		ParticleProp()->StopEmissionAndDestroyImmediately(m_pPoisonEffect);
+		m_pPoisonEffect = NULL;
+	}
+}
+//-----------------------------------------------------------------------------
+// Purpose:  Creation Of Tranq Overhead Effect
+//-----------------------------------------------------------------------------
+void C_TFPlayer::CreateTranqEffect(void)
+{
+	// Don't create them for the local player
+	if (IsLocalPlayer())
+		return;
+
+	// If I'm stealthed, don't create
+	if ((!m_Shared.InCondInvis()) && m_Shared.InCond(TF_COND_TRANQ) && IsAlive())
+	{
+		if (!m_pTranqEffect)
+		{
+			if (!m_Shared.m_flTranqEffects == 1)
+			{
+			m_pTranqEffect = ParticleProp()->Create("sleepy_overhead", PATTACH_POINT_FOLLOW, "head");
+			}
+			else
+			{
+			m_pTranqEffect = ParticleProp()->Create("mark_for_death", PATTACH_POINT_FOLLOW, "head");
+			}
+		}
+	}
+	else
+	{
+		if (m_pTranqEffect)
+		{
+			ParticleProp()->StopEmissionAndDestroyImmediately(m_pTranqEffect);
+			m_pTranqEffect = NULL;
+		}
+	}
+}
+
+//-----------------------------------------------------------------------------
+// Purpose:  Killing Of Tranq Overhead Effect
+//-----------------------------------------------------------------------------
+void C_TFPlayer::DestoryTranqEffect(void)
+{
+	// Don't create them for the local player
+	if (m_pTranqEffect)
+	{
+		ParticleProp()->StopEmissionAndDestroyImmediately(m_pTranqEffect);
+		m_pTranqEffect = NULL;
 	}
 }
 
