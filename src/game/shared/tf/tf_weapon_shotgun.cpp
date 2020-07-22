@@ -235,7 +235,6 @@ CTFEternalShotgun::CTFEternalShotgun(void)
 #ifdef GAME_DLL
 	m_hHook = NULL;
 	pBeam = NULL;
-	m_bWasOnGround = false;
 #endif
 }
 
@@ -295,9 +294,9 @@ void CTFEternalShotgun::ItemPostFrame()
 		return;
 	}
 
-#ifdef GAME_DLL
 	if (pHook)
 	{
+#ifdef GAME_DLL
 		Vector hookPos = pHook->GetAbsOrigin();
 		hookPos += (pHook->EyePosition() - hookPos) * 0.75; //looks better than 0.5 on hooked players
 
@@ -308,32 +307,15 @@ void CTFEternalShotgun::ItemPostFrame()
 			pBeam->PointEntInit(hookPos, this);
 			pBeam->SetEndAttachment(LookupAttachment("muzzle"));
 		}
-
+#endif
+		
 		if(m_iAttached)
 		{
-			//set pull start animation whenever player was on the ground and now isn't
-			if (pPlayer->GetGroundEntity())
-			{
-				m_bWasOnGround = true;
-			}
-			else if (m_bWasOnGround)
-			{
-				pPlayer->DoAnimationEvent(PLAYERANIMEVENT_CUSTOM, ACT_GRAPPLE_PULL_START);
-				m_bWasOnGround = false;
-			}
-
-			//Invalidate hook if it is not in sight
-			if (!HookLOS(hookPos))
-				RemoveHook();
-		}
-	}
-#endif
-
-	if(pHook)
-	{
-		if (m_iAttached) //hook is attached to something
-		{
+#ifdef GAME_DLL
+			if ( !HookLOS(hookPos) || ( pHook->GetAbsOrigin() - pPlayer->GetAbsOrigin() ).Length() <= 72.f )
+#else
 			if ((pHook->GetAbsOrigin() - pPlayer->GetAbsOrigin()).Length() <= 72.f)
+#endif
 				RemoveHook();
 			else if (m_iAttached == 2) //notify player how it should behave
 				InitiateHook(pPlayer, pHook);
@@ -498,8 +480,6 @@ void CTFEternalShotgun::RemoveHook(void)
 		UTIL_Remove(pBeam);
 		pBeam = NULL;
 	}
-
-	m_bWasOnGround = false;
 #endif
 
 	CTFPlayer *pPlayer = ToTFPlayer(GetPlayerOwner());
@@ -706,10 +686,7 @@ void CTFMeatHook::HookTouch(CBaseEntity *pOther)
 	CTFPlayer *pOwner = (CTFPlayer *)GetOwnerEntity();
 	pOwner->SetPhysicsFlag(PFLAG_VPHYSICS_MOTIONCONTROLLER, true);
 
-	if (!pOwner->GetGroundEntity())
-		pOwner->DoAnimationEvent(PLAYERANIMEVENT_CUSTOM, ACT_GRAPPLE_PULL_START);
-	else
-		m_hOwner->m_bWasOnGround = true;
+	pOwner->DoAnimationEvent(PLAYERANIMEVENT_CUSTOM, ACT_GRAPPLE_PULL_START);
 
 	CTFPlayer *pHooked = ToTFPlayer(pOther);
 	m_hOwner->NotifyHookAttached(pHooked);

@@ -157,7 +157,8 @@ bool CCondPowerup::DoPowerupEffect( CTFPlayer *pTFPlayer )
 		case 14:
 			m_iCondition = TF_COND_BERSERK;
 			break;
-		case 16:
+		case 15:
+		case TF_COND_SHIELD_DUEL:
 			m_iCondition = TF_COND_SHIELD;
 			break;
 	}	
