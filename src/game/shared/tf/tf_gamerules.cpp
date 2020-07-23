@@ -2702,16 +2702,8 @@ void CTFGameRules::SetupOnRoundStart( void )
 			CCondPowerup *pPowerup = static_cast< CCondPowerup* >( ICondPowerupAutoList::AutoList()[ i ] );
 
 			//if it's duel leave mega health and duel shield on the field
-			if( bIsDuel )
-			{
-				if( pPowerup->GetPowerupSize() == POWERUP_MEGA )
+			if( bIsDuel && ( pPowerup->GetPowerupSize() == POWERUP_MEGA || pPowerup->m_iCondition == TF_COND_SHIELD_DUEL ) )
 					continue;
-
-				//SHIELD_DUEL is just to make sure the powerup is removed on all modes except duel
-				//but it functions just like the regular shield powerup
-				if( pPowerup->m_iCondition == TF_COND_SHIELD_DUEL )
-					continue;
-			}
 
 			pPowerup->SetDisabled( true );
 		}

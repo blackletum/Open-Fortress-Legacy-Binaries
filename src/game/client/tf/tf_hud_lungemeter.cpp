@@ -6,16 +6,16 @@
 //=============================================================================
 
 #include "cbase.h"
-#include "hud.h"
 #include "hudelement.h"
 #include "c_tf_player.h"
 #include "iclientmode.h"
-#include "ienginevgui.h"
-#include <vgui/ILocalize.h>
-#include <vgui/ISurface.h>
 #include <vgui/IVGui.h>
 #include <vgui_controls/EditablePanel.h>
 #include <vgui_controls/ProgressBar.h>
+#include "tf_weapon_grapple.h"
+#include "tf_weapon_shotgun.h"
+#include "tf_controls.h"
+#include "tf_gamerules.h"
 
 // memdbgon must be the last include file in a .cpp file!!!
 #include "tier0/memdbgon.h"
@@ -37,7 +37,8 @@ public:
 	virtual void	OnTick( void );
 
 private:
-	vgui::ContinuousProgressBar *m_pLungeMeter;
+	ContinuousProgressBar *m_pChargeMeter;
+	C_TFWeaponBase *m_pHookWeapon;
 };
 
 DECLARE_HUDELEMENT( CHudLungeMeter );
@@ -52,7 +53,7 @@ CHudLungeMeter::CHudLungeMeter( const char *pElementName ) : CHudElement( pEleme
 	Panel *pParent = g_pClientMode->GetViewport();
 	SetParent( pParent );
 
-	m_pLungeMeter = new ContinuousProgressBar( this, "LungeMeter" );
+	m_pChargeMeter = new ContinuousProgressBar( this, "LungeMeter" );
 
 	SetHiddenBits( HIDEHUD_MISCSTATUS );
 
@@ -66,7 +67,6 @@ void CHudLungeMeter::ApplySchemeSettings( IScheme *pScheme )
 {
 	// load control settings...
 	LoadControlSettings( "resource/UI/HudLungeMeter.res" );
-
 	BaseClass::ApplySchemeSettings( pScheme );
 }
 
@@ -77,15 +77,21 @@ bool CHudLungeMeter::ShouldDraw( void )
 {
 	C_TFPlayer *pPlayer = C_TFPlayer::GetLocalTFPlayer();
 
-	if ( !pPlayer || !pPlayer->m_Shared.IsZombie() || ( pPlayer->GetPlayerClass()->GetClass() == TF_CLASS_JUGGERNAUT ) )
-	{
+	if ( !pPlayer || !pPlayer->IsAlive() || (pPlayer->GetPlayerClass()->GetClass() == TF_CLASS_JUGGERNAUT) )
 		return false;
-	}
 
-	if ( !pPlayer->IsAlive() )
+	C_TFWeaponBase *pWeapon = pPlayer->GetActiveTFWeapon();
+	bool bHookWeapon = 0;
+	if (pWeapon)
 	{
-		return false;
+		int iWeaponID = pWeapon->GetWeaponID();
+		if (iWeaponID == TF_WEAPON_GRAPPLE || iWeaponID == TF_WEAPON_ETERNALSHOTGUN)
+			bHookWeapon = true;
 	}
+	m_pHookWeapon = bHookWeapon ? pWeapon : NULL;
+
+	if (!pPlayer->m_Shared.IsZombie() && !m_pHookWeapon)
+		return false;
 
 	return CHudElement::ShouldDraw();
 }
@@ -97,13 +103,40 @@ void CHudLungeMeter::OnTick( void )
 {
 	C_TFPlayer *pPlayer = C_TFPlayer::GetLocalTFPlayer();
 
-	if ( !pPlayer )
+	if ( !pPlayer || !m_pChargeMeter )
 		return;
 
-	if ( m_pLungeMeter )
+	float flProgress = 0.f;
+	if ( pPlayer->m_Shared.IsZombie() ) //zombie lunge meter
 	{
-		float flProgress = pPlayer->m_Shared.GetNextLungeTime() <= gpGlobals->curtime ? 1.0f : 
-		1.0f - ((pPlayer->m_Shared.GetNextLungeTime() - gpGlobals->curtime) / of_zombie_lunge_delay.GetFloat());
-		m_pLungeMeter->SetProgress( flProgress );
+		dynamic_cast<CExLabel *>( FindChildByName("LungeLabel") )->SetText("#TF_Lunge");
+
+		float flProgress = pPlayer->m_Shared.GetNextLungeTime() <= gpGlobals->curtime ? 1.0f : 1.0f - (pPlayer->m_Shared.GetNextLungeTime() - gpGlobals->curtime) / of_zombie_lunge_delay.GetFloat();
+		m_pChargeMeter->SetProgress(flProgress);
+	}
+	else if (m_pHookWeapon)
+	{
+		if (m_pHookWeapon->GetWeaponID() == TF_WEAPON_GRAPPLE)
+		{
+			dynamic_cast<CExLabel *>(FindChildByName("LungeLabel"))->SetText("Charge");
+
+			C_WeaponGrapple *pHook = dynamic_cast<C_WeaponGrapple *>( m_pHookWeapon );
+			flProgress = pHook->GetGrappleCharge();
+
+			//when below 25% charge set color to a not too strong red
+			m_pChargeMeter->SetFgColor(flProgress <= 0.25 ? Color(242, 67, 29, 255) : Color(255, 255, 255, 255));
+			m_pChargeMeter->SetProgress(flProgress);
+		}
+		else
+		{
+			dynamic_cast<CExLabel *>(FindChildByName("LungeLabel"))->SetText("Hook");
+
+			C_TFEternalShotgun *pHook = dynamic_cast<C_TFEternalShotgun *>(m_pHookWeapon);
+			flProgress = pHook->GetGrappleCharge();
+
+			//when below 25% charge set color to a not too strong red
+			m_pChargeMeter->SetFgColor(flProgress > 0.f ? Color(255, 153, 0, 255) : Color(255, 255, 255, 255));
+			m_pChargeMeter->SetProgress(1.f - flProgress);
+		}
 	}
 }

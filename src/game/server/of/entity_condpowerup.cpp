@@ -39,7 +39,7 @@ END_DATADESC()
 IMPLEMENT_SERVERCLASS_ST( CCondPowerup, DT_CondPowerup )
 SendPropInt( SENDINFO( m_iCondition ) ),
 SendPropBool( SENDINFO( m_bDisableShowOutline ) ),
-SendPropBool( SENDINFO( m_bRespawning) ),
+SendPropBool( SENDINFO( m_bRespawning ) ),
 SendPropBool( SENDINFO( bInitialDelay ) ),
 SendPropTime( SENDINFO( m_flRespawnTick ) ),
 SendPropTime( SENDINFO( fl_RespawnTime ) ),
@@ -64,10 +64,6 @@ CCondPowerup::CCondPowerup()
 
 void CCondPowerup::Spawn( void )
 {
-	//disable outline
-	if (TFGameRules()->IsDuelGamemode())
-		m_bDisableShowOutline = true;
-
 	Precache();
 
 	if ( m_iszPowerupModel == MAKE_STRING( "" ) ) 
@@ -81,6 +77,13 @@ void CCondPowerup::Spawn( void )
 	SetContextThink( &CCondPowerup::AnnouncerThink, gpGlobals->curtime, "AnnounceThink" );
 
 	BaseClass::Spawn();
+
+	//disable outline
+	if (TFGameRules()->IsDuelGamemode())
+	{
+		m_bDisableShowOutline = true;
+		fl_RespawnTime = 60.f;
+	}
 }
 
 //-----------------------------------------------------------------------------
@@ -161,7 +164,7 @@ bool CCondPowerup::DoPowerupEffect( CTFPlayer *pTFPlayer )
 		case TF_COND_SHIELD_DUEL:
 			m_iCondition = TF_COND_SHIELD;
 			break;
-	}	
+	}
 	
 	if ( pTFPlayer->m_Shared.InCond(m_iCondition) )
 		return false;
@@ -204,10 +207,10 @@ CBaseEntity *CCondPowerup::Respawn( void )
 	m_flRespawnTick = GetNextThink();
 
 	//In duel mode don't show the respawn timers, unless the convar allows it
-	if ( TFGameRules()->IsDuelGamemode() && !of_duel_powerup_timers.GetBool() )
+	if ( TFGameRules()->IsDuelGamemode() && !of_duel_powerup_timers.GetBool())
 	{
 		m_nRenderFX = kRenderFxNone;
-		AddEffects( EF_NODRAW );
+		AddEffects(EF_NODRAW);
 	}
 	else
 	{
