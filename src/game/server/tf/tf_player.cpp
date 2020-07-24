@@ -4559,7 +4559,7 @@ static float DamageForce( const Vector &size, float damage, float scale )
 //-----------------------------------------------------------------------------
 // Purpose: Apply damage knockback when damage is zero
 //-----------------------------------------------------------------------------
-void CTFPlayer::ApplyDamageKnockback( const CTakeDamageInfo &info )
+void CTFPlayer::ApplyDamageKnockback(const CTakeDamageInfo &info, bool noKnockback, Vector *dir)
 {
 	Vector vecDir = vec3_origin;
 	if ( info.GetInflictor() )
@@ -4568,6 +4568,12 @@ void CTFPlayer::ApplyDamageKnockback( const CTakeDamageInfo &info )
 		VectorNormalize( vecDir );
 	}
 	g_vecAttackDir = vecDir;
+
+	if (dir)
+		*dir = vecDir;
+
+	if (noKnockback)
+		return;
 
 	if ( ( info.GetDamageType() & DMG_PREVENT_PHYSICS_FORCE ) == 0 )
 	{
@@ -4701,6 +4707,8 @@ int CTFPlayer::OnTakeDamage( const CTakeDamageInfo &inputInfo )
 	int bitsDamage = inputInfo.GetDamageType();
 	int bitsCustomDamage = inputInfo.GetDamageCustom();
 
+	CBaseEntity *pAttacker = info.GetAttacker();
+
 	// If we're invulnerable, force ourselves to only take damage events only, so we still get pushed
 	if ( m_Shared.InCondUber() )
 	{
@@ -4712,8 +4720,6 @@ int CTFPlayer::OnTakeDamage( const CTakeDamageInfo &inputInfo )
 			bAllowDamage = true;
 
 		// check to see if our attacker is a trigger_hurt (and allow it to kill us even if we're invuln)
-		CBaseEntity *pAttacker = info.GetAttacker();
-
 		CBaseEntity *pInflictor = info.GetInflictor();
 
 		if ( pAttacker && pAttacker->IsSolidFlagSet( FSOLID_TRIGGER ) )
@@ -4733,11 +4739,8 @@ int CTFPlayer::OnTakeDamage( const CTakeDamageInfo &inputInfo )
 
 		if ( !bAllowDamage )
 		{
-			int iOldTakeDamage = m_takedamage;
-			m_takedamage = DAMAGE_EVENTS_ONLY;
 			// NOTE: Deliberately skip base player OnTakeDamage, because we don't want all the stuff it does re: suit voice
 			CBaseCombatCharacter::OnTakeDamage( info );
-			m_takedamage = iOldTakeDamage;
 
 			// Burn sounds are handled in ConditionThink()
 			if ( !(bitsDamage & DMG_BURN ) )
@@ -4749,14 +4752,8 @@ int CTFPlayer::OnTakeDamage( const CTakeDamageInfo &inputInfo )
 	// If we're not damaging ourselves, apply randomness
 	if ( info.GetAttacker() != this && !(bitsDamage & (DMG_DROWN | DMG_FALL)) ) 
 	{
-
-		if ( m_Shared.InCondShield() )
-		{
-			float flDamage = info.GetDamage() * of_resistance.GetFloat();
-			info.SetDamage( flDamage );
-		}
-			
-		float flDamage = 0;
+		float flDamage = 0.f;
+		
 		if ( bitsDamage & DMG_CRITICAL )
 		{
 			if ( bDebug )
@@ -4884,7 +4881,7 @@ int CTFPlayer::OnTakeDamage( const CTakeDamageInfo &inputInfo )
 				}
 				*/
 			}
-
+			
 			// Burn sounds are handled in ConditionThink()
 			if ( !(bitsDamage & DMG_BURN ) )
 			{
@@ -4904,16 +4901,10 @@ int CTFPlayer::OnTakeDamage( const CTakeDamageInfo &inputInfo )
 	// explosive weapons (which all use HALF_FALLOFF dmg) deal less damage depending on circumstances
 	if ( bitsDamage & DMG_HALF_FALLOFF ) 
 	{
-		float flAdjustedDamage = 1.0f;
-
-		if ( m_Shared.InCondUber() )
-			flAdjustedDamage = 0.0f;		
+		float flAdjustedDamage = 1.0f;	
 	
 		if ( info.GetAttacker() == this )
-		{			
-//			if( m_Shared.InCond( TF_COND_SHIELD ) )
-//				flAdjustedDamage = flAdjustedDamage * of_resistance.GetFloat();
-
+		{
 			switch ( of_selfdamage.GetInt() )
 			{
 				case -1:
@@ -4934,9 +4925,12 @@ int CTFPlayer::OnTakeDamage( const CTakeDamageInfo &inputInfo )
 				default:
 					break;
 			}
-		}			
-		// apply damage knockback anyway if the adjustment leads to zero damage
-		if ( flAdjustedDamage <= 0.0f )
+		}
+
+		// apply damage knockback anyway if the adjustment leads to zero damage and, if attack is coming from ally, it is not friendly fire
+		bool bIsAlly = pAttacker && pAttacker->GetTeamNumber() == GetTeamNumber() && pAttacker->GetTeamNumber() != TF_TEAM_MERCENARY;
+
+		if ( flAdjustedDamage <= 0.0f && !( bIsAlly && !of_teamplay_knockback.GetBool() ) )
 			ApplyDamageKnockback( info );
 
 		info.SetDamage( info.GetDamage() * flAdjustedDamage );
@@ -4944,6 +4938,7 @@ int CTFPlayer::OnTakeDamage( const CTakeDamageInfo &inputInfo )
 
 	if( info.GetDamage() > 0.0f && GetHealth() <= m_Shared.GetDefaultHealth() + m_Shared.m_flMegaOverheal )
 		m_Shared.m_flMegaOverheal = max( 0.0f, m_Shared.m_flMegaOverheal - info.GetDamage() );
+
 	// NOTE: Deliberately skip base player OnTakeDamage, because we don't want all the stuff it does re: suit voice
 	bTookDamage = CBaseCombatCharacter::OnTakeDamage( info );
 
@@ -5255,15 +5250,12 @@ void CTFPlayer::CommitSuicide( bool bExplode /* = false */, bool bForce /*= fals
 //-----------------------------------------------------------------------------
 int CTFPlayer::OnTakeDamage_Alive( const CTakeDamageInfo &info )
 {
-	// Grab the vector of the incoming attack. 
-	// (Pretend that the inflictor is a little lower than it really is, so the body will tend to fly upward a bit).
-	Vector vecDir = vec3_origin;
-	if ( info.GetInflictor() )
-	{
-		vecDir = info.GetInflictor()->WorldSpaceCenter() - Vector ( 0.0f, 0.0f, 10.0f ) - WorldSpaceCenter();
-		VectorNormalize( vecDir );
-	}
-	g_vecAttackDir = vecDir;
+	CBaseEntity *pAttacker = info.GetAttacker();
+	bool bIsAlly = pAttacker && pAttacker->GetTeamNumber() == GetTeamNumber() && pAttacker->GetTeamNumber() != TF_TEAM_MERCENARY;
+
+	// Apply knockback, but not if it's coming for an ally and friendly knockback is off
+	Vector vecDir;
+	ApplyDamageKnockback( info, bIsAlly && !of_teamplay_knockback.GetBool(), &vecDir );
 	
 	// Do the damage.
 	m_bitsDamageType |= info.GetDamageType();
@@ -5271,58 +5263,17 @@ int CTFPlayer::OnTakeDamage_Alive( const CTakeDamageInfo &info )
 	int iOldHealth = m_iHealth;
 	bool bIgniting = false;
 
-	//if (pAttacker != this && pAttacker->IsPlayer())
-	//{
-	//	ToTFPlayer(pAttacker)->RecordDamageEvent(info, (m_iHealth <= 0));
-	//}
-
-	// Apply a damage force.
-	CBaseEntity *pAttacker = info.GetAttacker();
-
-	
-	//if (pPlayer->GetTeamNumber() == GetTeamNumber() && bIsMedic == false && !friendlyfire.GetBool()
-	//	// Deathmatch Specific Lag Comp, If either the shooter or the Victim is on the merc team, dont return false here
-	//	&& pPlayer->GetTeamNumber() != TF_TEAM_MERCENARY && GetTeamNumber() != TF_TEAM_MERCENARY)
-	//	return false;
-
-	//		if ( pAttacker && pAttacker->GetTeamNumber() == GetTeamNumber() && !friendlyfire.GetBool() && pAttacker->GetTeamNumber() == TF_TEAM_MERCENARY )
-
-
-	if ( !of_teamplay_knockback.GetBool() )
+	// Apply a damage force unless player is protected from that damage
+	if ( m_takedamage != DAMAGE_EVENTS_ONLY && !m_Shared.InCondUber() && !( bIsAlly && !friendlyfire.GetBool() ) )
 	{
-		if ( m_takedamage != DAMAGE_EVENTS_ONLY )
-		{
-			// Start burning if we took ignition damage
-			bIgniting = ( ( info.GetDamageType() & DMG_IGNITE ) && ( GetWaterLevel() < WL_Waist ) );
+		// Start burning if we took ignition damage
+		bIgniting = ( ( info.GetDamageType() & DMG_IGNITE ) && ( GetWaterLevel() < WL_Waist ) );
 
-			if ( info.GetDamage() == 0.0f )
-				return 0;
+		if ( !info.GetDamage() )
+			return 0;
 
-			// Take damage - round to the nearest integer.
-			m_iHealth -= ( info.GetDamage() + 0.5f );
-		}
-	}
-	// if we have teamplay knockback enabled and friendlyfire is off, then allow teammates to apply knockback force to other teammates without causing damage
-	else
-	{
-		if ( pAttacker && pAttacker->GetTeamNumber() == GetTeamNumber() && !friendlyfire.GetBool() && pAttacker->GetTeamNumber() != TF_TEAM_MERCENARY )
-		{
-			// i know, this sucks, but it doesnt work if I invert it, feel free to fix it if you can
-		}
-		else
-		{
-			if ( m_takedamage != DAMAGE_EVENTS_ONLY )
-			{
-				// Start burning if we took ignition damage
-				bIgniting = ( ( info.GetDamageType() & DMG_IGNITE ) && ( GetWaterLevel() < WL_Waist ) );
-
-				if ( info.GetDamage() == 0.0f )
-					return 0;
-
-				// Take damage - round to the nearest integer.
-				m_iHealth -= ( info.GetDamage() + 0.5f );
-			}	
-		}
+		// Take damage - round to the nearest integer.
+		m_iHealth -= info.GetDamage() * ( m_Shared.InCondShield() ? of_resistance.GetFloat() : 1.f ) + 0.5f;
 	}
 
 	m_flLastDamageTime = gpGlobals->curtime;
@@ -5330,12 +5281,8 @@ int CTFPlayer::OnTakeDamage_Alive( const CTakeDamageInfo &info )
 	if ( !pAttacker )
 		return 0;
 
-	ApplyDamageKnockback( info );
-
 	if ( bIgniting )
-	{
 		m_Shared.Burn( ToTFPlayer( pAttacker ), 0 );
-	}
 
 	// Fire a global game event - "player_hurt"
 	IGameEvent * event = gameeventmanager->CreateEvent( "player_hurt" );
@@ -5363,30 +5310,6 @@ int CTFPlayer::OnTakeDamage_Alive( const CTakeDamageInfo &info )
 
         gameeventmanager->FireEvent( event );
 	}
-	
-	/* undone, now executed as part of the medaling system
-	CTFWeaponBase *pActiveWeapon = pPlayer ? pPlayer->GetActiveTFWeapon() : NULL;
-	if ( pActiveWeapon && pPlayer )
-	{
-		if ( pActiveWeapon->GetWeaponID() == TF_WEAPON_RAILGUN 
-		|| pActiveWeapon->GetWeaponID() == TF_WEAPON_SNIPERRIFLE )
-		{
-			// FarmZombie_ Be like
-			if ( pPlayer->trickshot == 0 )
-				pPlayer->trickshot++;
-			else
-			{
-				pPlayer->trickshot = 0;
-				if ( TeamplayRoundBasedRules() && TFGameRules() && TFGameRules()->IsDMGamemode() && !TFGameRules()->DontCountKills() )
-					TeamplayRoundBasedRules()->BroadcastSoundFFA( pPlayer->entindex() ,"Impressive");
-			}
-		}
-		else
-		{
-			pPlayer->trickshot = 0;
-		}
-	}
-	*/
 	
 	if ( pAttacker != this && pAttacker->IsPlayer() )
 	{

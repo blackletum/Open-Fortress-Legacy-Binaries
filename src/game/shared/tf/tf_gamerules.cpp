@@ -2681,6 +2681,8 @@ void CTFGameRules::SetupOnRoundStart( void )
 		}
 	}
 	
+	bool bIsDuel = IsDuelGamemode();
+
 	CWeaponSpawner *pWeaponSpawner;
 	if ( !of_weaponspawners.GetBool() || of_randomizer.GetBool() || !TFGameRules()->IsMutator( NO_MUTATOR ) || TFGameRules()->IsGGGamemode() )
 	{
@@ -2695,12 +2697,11 @@ void CTFGameRules::SetupOnRoundStart( void )
 		for ( int i = 0; i < IWeaponSpawnerAutoList::AutoList().Count(); ++i )
 		{
 			pWeaponSpawner = static_cast< CWeaponSpawner* >( IWeaponSpawnerAutoList::AutoList()[ i ] );
-			pWeaponSpawner->SetDisabled( false );
+			pWeaponSpawner->SetDisabled( bIsDuel && pWeaponSpawner->m_bSuperWeapon ? true : false );
 		}
-	}	
+	}
 
 	CCondPowerup *pPowerup;
-	bool bIsDuel = IsDuelGamemode();
 	if ( TFGameRules()->IsMutator( INSTAGIB ) || TFGameRules()->IsMutator( INSTAGIB_NO_MELEE ) || !of_powerups.GetBool() || bIsDuel )
 	{
 		for ( int i = 0; i < ICondPowerupAutoList::AutoList().Count(); ++i )
@@ -2709,7 +2710,7 @@ void CTFGameRules::SetupOnRoundStart( void )
 
 			//if it's duel leave mega health and duel shield on the field
 			if( bIsDuel && ( pPowerup->GetPowerupSize() == POWERUP_MEGA || pPowerup->m_iCondition == TF_COND_SHIELD_DUEL ) )
-					continue;
+				continue;
 
 			pPowerup->SetDisabled( true );
 		}
@@ -5249,8 +5250,10 @@ void CTFGameRules::DeathNotice(CBasePlayer *pVictim, const CTakeDamageInfo &info
 				event->SetInt("ex_streak", pTFPlayerScorer->m_iEXKills);
 			}
 
+			bool bSuicide = pVictim == pKiller;
+
 			//more streaks
-			event->SetInt("victim_pupkills", !pTFPlayerVictim->m_bHadPowerup ? -1 : pTFPlayerVictim->m_iPowerupKills);
+			event->SetInt("victim_pupkills", !pTFPlayerVictim->m_bHadPowerup || bSuicide ? -1 : pTFPlayerVictim->m_iPowerupKills);
 			event->SetInt("victim_kspree", pTFPlayerVictim->m_iSpreeKills);
 
 			//Humiliation
@@ -5268,7 +5271,7 @@ void CTFGameRules::DeathNotice(CBasePlayer *pVictim, const CTakeDamageInfo &info
 				m_InflictorsArray[pVictim->entindex()] = pInflictor;
 				bool Kamikaze = false;
 
-				if(pVictim != pKiller) //evaluating death of the victim
+				if(!bSuicide) //evaluating death of the victim
 				{
 					//scorer was killed by the same inflictor of the victim
 					Kamikaze = m_InflictorsArray[pKiller->entindex()] && pInflictor == m_InflictorsArray[pKiller->entindex()];
@@ -5299,12 +5302,6 @@ void CTFGameRules::DeathNotice(CBasePlayer *pVictim, const CTakeDamageInfo &info
 
 				event->SetBool("kamikaze", Kamikaze);
 			}
-			else
-			{
-				//Only needed for Duel mode. Without this if there is only one dueler
-				//on the map and it suicides it gets denied medal
-				event->SetInt("victim_pupkills", -1);
-			}
 
 			//first blood
 			if(!m_bFirstBlood && pVictim != pKiller) //only award first blood if it's not a suicide kill
@@ -5312,6 +5309,10 @@ void CTFGameRules::DeathNotice(CBasePlayer *pVictim, const CTakeDamageInfo &info
 				event->SetBool("firstblood", true);
 				m_bFirstBlood = true;
 			}
+		}
+		else
+		{
+			event->SetInt("victim_pupkills", -1);
 		}
 
 		gameeventmanager->FireEvent(event);

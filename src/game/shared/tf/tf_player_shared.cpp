@@ -3812,10 +3812,7 @@ int CTFPlayer::GetMaxAmmo( int iAmmoIndex, int iClassNumber /*= -1*/ )
 //-----------------------------------------------------------------------------
 bool CTFPlayerShared::InCondUber( void )
 {
-	if ( InCond( TF_COND_INVULNERABLE ) || InCond( TF_COND_SPAWNPROTECT ) )
-		return true;
-	else
-		return false;
+	return InCond(TF_COND_INVULNERABLE) || InCond(TF_COND_SPAWNPROTECT);
 }
 void CTFPlayerShared::RemoveCondUber( void )
 {
@@ -3825,10 +3822,7 @@ void CTFPlayerShared::RemoveCondUber( void )
 
 bool CTFPlayerShared::InCondShield( void )
 {
-	if ( InCond( TF_COND_SHIELD ) )
-		return true;
-	else
-		return false;
+	return InCond(TF_COND_SHIELD);
 }
 void CTFPlayerShared::RemoveCondShield( void )
 {
@@ -3840,10 +3834,7 @@ void CTFPlayerShared::RemoveCondShield( void )
 //-----------------------------------------------------------------------------
 bool CTFPlayerShared::InCondCrit( void )
 {
-	if ( InCond( TF_COND_CRITBOOSTED ) || InCond( TF_COND_CRIT_POWERUP ) || InCond( TF_COND_CRITBOOSTED_DEMO_CHARGE ) )
-		return true;
-	else
-		return false;
+	return InCond(TF_COND_CRITBOOSTED) || InCond(TF_COND_CRIT_POWERUP) || InCond(TF_COND_CRITBOOSTED_DEMO_CHARGE);
 }
 
 //-----------------------------------------------------------------------------
@@ -3861,10 +3852,7 @@ void CTFPlayerShared::RemoveCondCrit( void )
 //-----------------------------------------------------------------------------
 bool CTFPlayerShared::InCondInvis( void )
 {
-	if ( InCond( TF_COND_STEALTHED ) || InCond( TF_COND_INVIS_POWERUP ) )
-		return true;
-	else
-		return false;
+	return InCond(TF_COND_STEALTHED) || InCond(TF_COND_INVIS_POWERUP);
 }
 
 //-----------------------------------------------------------------------------
