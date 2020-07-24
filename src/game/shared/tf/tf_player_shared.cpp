@@ -2206,18 +2206,25 @@ bool CTFPlayerShared::DoLungeCheck( void )
 {
 	if ( IsZombie() || m_pOuter->GetPlayerClass()->GetClass() == TF_CLASS_JUGGERNAUT )
 	{
-		bool OnGround = m_pOuter->GetGroundEntity() != NULL;
+		bool bInWater = m_pOuter->GetWaterLevel() > WL_Feet;
 
-		if ( OnGround || !m_pOuter->IsAlive() )
+		if ( bInWater || !m_pOuter->IsAlive() )
+		{
+			m_bIsLunging = false;
+			return false;
+		}
+
+		bool bOnGround = m_pOuter->GetGroundEntity() != NULL;
+
+		if ( bOnGround )
 			m_bIsLunging = false;
 
-		CTFClaws *pWeapon = dynamic_cast<CTFClaws*>( m_pOuter->GetActiveWeapon() );
+		CTFClaws *pWeapon = dynamic_cast<CTFClaws *>( m_pOuter->GetActiveWeapon() );
 
 		if ( !pWeapon )
 			return false;
 
-		if ( ( m_pOuter->m_nButtons & IN_ATTACK2 ) && pWeapon->CanPrimaryAttack() &&
-			 m_pOuter->GetWaterLevel() < 2 && !m_pOuter->m_Shared.InCond( TF_COND_TAUNTING ) && OnGround )
+		if ( (m_pOuter->m_nButtons & IN_ATTACK2) && pWeapon->CanPrimaryAttack() && !m_pOuter->m_Shared.InCond(TF_COND_TAUNTING) && bOnGround )
 		{
 			if ( m_flNextLungeTime <= gpGlobals->curtime )
 			{
@@ -3105,7 +3112,7 @@ void CTFPlayer::TeamFortress_SetSpeed()
 	}
 
 	// Check for any reason why they can't move at all
-	if ( playerclass == TF_CLASS_UNDEFINED || TFGameRules()->InRoundRestart() )
+	if ( ( playerclass == TF_CLASS_UNDEFINED || TFGameRules()->InRoundRestart() ) && !TFGameRules()->IsDuelGamemode() )
 	{
 		SetAbsVelocity( vec3_origin );
 		SetMaxSpeed( 1 );

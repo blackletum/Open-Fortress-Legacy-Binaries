@@ -42,6 +42,7 @@
 	#include <../shared/gamemovement.h>
 	#include "dt_utlvector_send.h"
 	#include "team_train_watcher.h"
+	#include "of_dropped_weapon.h"
 #endif
 
 // memdbgon must be the last include file in a .cpp file!!!
@@ -94,6 +95,7 @@ extern ConVar of_knockback_melee;
 extern ConVar of_knockback_explosives;
 extern ConVar teamplay;
 extern ConVar of_gravitygun;
+extern ConVar of_force_round_limit;
 
 ConVar tf_caplinear						( "tf_caplinear", "1", FCVAR_REPLICATED, "If set to 1, teams must capture control points linearly." );
 ConVar tf_stalematechangeclasstime		( "tf_stalematechangeclasstime", "20", FCVAR_REPLICATED, "Amount of time that players are allowed to change class in stalemates." );
@@ -2643,11 +2645,12 @@ void CTFGameRules::SetupOnRoundStart( void )
 	m_szMostRecentCappers[0] = 0;
 #endif
 
+	CHealthKit *pHealthKit;
 	if ( of_disable_healthkits.GetBool() )
 	{
 		for ( int i = 0; i < IHealthKitAutoList::AutoList().Count(); ++i )
 		{
-			CHealthKit *pHealthKit = static_cast< CHealthKit* >( IHealthKitAutoList::AutoList()[ i ] );
+			pHealthKit = static_cast< CHealthKit* >( IHealthKitAutoList::AutoList()[ i ] );
 			pHealthKit->SetDisabled( true );
 		}
 	}
@@ -2655,16 +2658,17 @@ void CTFGameRules::SetupOnRoundStart( void )
 	{
 		for ( int i = 0; i < IHealthKitAutoList::AutoList().Count(); ++i )
 		{
-			CHealthKit *pHealthKit = static_cast< CHealthKit* >( IHealthKitAutoList::AutoList()[ i ] );
+			pHealthKit = static_cast< CHealthKit* >( IHealthKitAutoList::AutoList()[ i ] );
 			pHealthKit->SetDisabled( false );
 		}
 	}
 
+	CAmmoPack *pAmmoPack;
 	if ( of_disable_ammopacks.GetBool() )
 	{
 		for ( int i = 0; i < IAmmoPackAutoList::AutoList().Count(); ++i )
 		{
-			CAmmoPack *pAmmoPack = static_cast< CAmmoPack* >( IAmmoPackAutoList::AutoList()[ i ] );
+			pAmmoPack = static_cast< CAmmoPack* >( IAmmoPackAutoList::AutoList()[ i ] );
 			pAmmoPack->SetDisabled( true );
 		}
 	}
@@ -2672,16 +2676,17 @@ void CTFGameRules::SetupOnRoundStart( void )
 	{
 		for ( int i = 0; i < IAmmoPackAutoList::AutoList().Count(); ++i )
 		{
-			CAmmoPack *pAmmoPack = static_cast< CAmmoPack* >( IAmmoPackAutoList::AutoList()[ i ] );
+			pAmmoPack = static_cast< CAmmoPack* >( IAmmoPackAutoList::AutoList()[ i ] );
 			pAmmoPack->SetDisabled( false );
 		}
 	}
 	
+	CWeaponSpawner *pWeaponSpawner;
 	if ( !of_weaponspawners.GetBool() || of_randomizer.GetBool() || !TFGameRules()->IsMutator( NO_MUTATOR ) || TFGameRules()->IsGGGamemode() )
 	{
 		for ( int i = 0; i < IWeaponSpawnerAutoList::AutoList().Count(); ++i )
 		{
-			CWeaponSpawner *pWeaponSpawner = static_cast< CWeaponSpawner* >( IWeaponSpawnerAutoList::AutoList()[ i ] );
+			pWeaponSpawner = static_cast< CWeaponSpawner* >( IWeaponSpawnerAutoList::AutoList()[ i ] );
 			pWeaponSpawner->SetDisabled( true );
 		}
 	}
@@ -2689,17 +2694,18 @@ void CTFGameRules::SetupOnRoundStart( void )
 	{
 		for ( int i = 0; i < IWeaponSpawnerAutoList::AutoList().Count(); ++i )
 		{
-			CWeaponSpawner *pWeaponSpawner = static_cast< CWeaponSpawner* >( IWeaponSpawnerAutoList::AutoList()[ i ] );
+			pWeaponSpawner = static_cast< CWeaponSpawner* >( IWeaponSpawnerAutoList::AutoList()[ i ] );
 			pWeaponSpawner->SetDisabled( false );
 		}
 	}	
 
+	CCondPowerup *pPowerup;
 	bool bIsDuel = IsDuelGamemode();
 	if ( TFGameRules()->IsMutator( INSTAGIB ) || TFGameRules()->IsMutator( INSTAGIB_NO_MELEE ) || !of_powerups.GetBool() || bIsDuel )
 	{
 		for ( int i = 0; i < ICondPowerupAutoList::AutoList().Count(); ++i )
 		{
-			CCondPowerup *pPowerup = static_cast< CCondPowerup* >( ICondPowerupAutoList::AutoList()[ i ] );
+			pPowerup = static_cast< CCondPowerup* >( ICondPowerupAutoList::AutoList()[ i ] );
 
 			//if it's duel leave mega health and duel shield on the field
 			if( bIsDuel && ( pPowerup->GetPowerupSize() == POWERUP_MEGA || pPowerup->m_iCondition == TF_COND_SHIELD_DUEL ) )
@@ -2712,7 +2718,7 @@ void CTFGameRules::SetupOnRoundStart( void )
 	{
 		for ( int i = 0; i < ICondPowerupAutoList::AutoList().Count(); ++i )
 		{
-			CCondPowerup *pPowerup = static_cast< CCondPowerup* >( ICondPowerupAutoList::AutoList()[ i ] );
+			pPowerup = static_cast< CCondPowerup* >( ICondPowerupAutoList::AutoList()[ i ] );
 			pPowerup->SetDisabled( pPowerup->m_iCondition == TF_COND_SHIELD_DUEL ? true : false ); //duel only shield powerup removed in all other gamemodes
 		}
 	}	
@@ -3007,9 +3013,11 @@ void CTFGameRules::PreviousRoundEnd( void )
 {
 	// before we enter a new round, fire the "end output" for the previous round
 	if ( g_hControlPointMasters.Count() && g_hControlPointMasters[0] )
-	{
 		g_hControlPointMasters[0]->FireRoundEndOutput();
-	}
+
+	//Remove all dropped weapons
+	for ( int i = 0; i < ICondDroppedWeaponAutoList::AutoList().Count(); ++i )
+		UTIL_Remove( static_cast<CTFDroppedWeapon *>( ICondDroppedWeaponAutoList::AutoList()[ i ] ) );
 
 	m_iPreviousRoundWinners = GetWinningTeam();
 }
@@ -3057,9 +3065,10 @@ void CTFGameRules::SetupOnStalemateStart( void )
 	}
 
 	// Disable all the active health packs in the world
+	CHealthKit *pHealthKit;
 	for ( int i = 0; i < IHealthKitAutoList::AutoList().Count(); ++i )
 	{
-		CHealthKit *pHealthKit = static_cast< CHealthKit* >( IHealthKitAutoList::AutoList()[ i ] );
+		pHealthKit = static_cast< CHealthKit* >( IHealthKitAutoList::AutoList()[ i ] );
 		pHealthKit->SetDisabled( true );
 	}
 
@@ -3080,9 +3089,10 @@ void CTFGameRules::SetupOnStalemateStart( void )
 //-----------------------------------------------------------------------------
 void CTFGameRules::SetupOnStalemateEnd( void )
 {
+	CHealthKit *pHealthKit;
 	for ( int i = 0; i < IHealthKitAutoList::AutoList().Count(); ++i )
 	{
-		CHealthKit *pHealthKit = static_cast< CHealthKit* >( IHealthKitAutoList::AutoList()[ i ] );
+		pHealthKit = static_cast< CHealthKit* >( IHealthKitAutoList::AutoList()[ i ] );
 		pHealthKit->SetDisabled( false );
 	}
 }
@@ -3534,7 +3544,9 @@ void CTFGameRules::RadiusDamage( const CTakeDamageInfo &info, const Vector &vecS
 			}
 
 			// there is less than 60 seconds left of time, start voting for next map
-			if ( mp_timelimit.GetInt() > 0 && GetTimeLeft() <= 60 && !m_bStartedVote && !TFGameRules()->IsInWaitingForPlayers() )
+			//Ivory: but only if it is the last round if we are forcing teams to play the amount set by mp_maxrounds
+			bool bIsLastRound = of_force_round_limit.GetBool() ? m_nRoundsPlayed >= mp_maxrounds.GetInt() : true;
+			if ( mp_timelimit.GetInt() > 0 && GetTimeLeft() <= 60 && !m_bStartedVote && bIsLastRound && !TFGameRules()->IsInWaitingForPlayers() )
 			{
 				DevMsg( "VoteController: Timeleft is less than 60 seconds, begin nextlevel voting... \n" );
 				m_bStartedVote = true;
@@ -3901,89 +3913,23 @@ void CTFGameRules::RadiusDamage( const CTakeDamageInfo &info, const Vector &vecS
 		}
 
 		// play countdown dialog if we are within 10 points of reaching the limit
+		int counter;
+		char szRoundEnd[24];
 		if ( m_nDomScore_red > dom_score_red_old )
 		{
-			int counter;
-
 			counter = m_nDomScore_limit - m_nDomScore_red;
+			Q_snprintf(szRoundEnd, sizeof(szRoundEnd), "RoundEnds%dseconds", counter);
 
 			for ( int i = FIRST_GAME_TEAM; i < GetNumberOfTeams(); i++ )
-			{
-				switch ( counter )
-				{
-				case 1:
-					BroadcastSound( i, "RoundEnds1seconds" );
-					break;
-				case 2:
-					BroadcastSound( i, "RoundEnds2seconds" );
-					break;
-				case 3:
-					BroadcastSound( i, "RoundEnds3seconds" );
-					break;
-				case 4:
-					BroadcastSound( i, "RoundEnds4seconds" );
-					break;
-				case 5:
-					BroadcastSound( i, "RoundEnds5seconds" );
-					break;
-				case 6:
-					BroadcastSound( i, "RoundEnds6seconds" );
-					break;
-				case 7:
-					BroadcastSound( i, "RoundEnds7seconds" );
-					break;
-				case 8:
-					BroadcastSound( i, "RoundEnds8seconds" );
-					break;
-				case 9:
-					BroadcastSound( i, "RoundEnds9seconds" );
-					break;
-				default:
-					break;
-				}
-			}
+				BroadcastSound( i, szRoundEnd );
 		}
 		else if ( m_nDomScore_blue > dom_score_blue_old )
 		{
-			int counter;
-
 			counter = m_nDomScore_limit - m_nDomScore_blue;
+			Q_snprintf(szRoundEnd, sizeof(szRoundEnd), "RoundEnds%dseconds", counter);
 
 			for ( int i = FIRST_GAME_TEAM; i < GetNumberOfTeams(); i++ )
-			{
-				switch ( counter )
-				{
-				case 1:
-					BroadcastSound( i, "RoundEnds1seconds" );
-					break;
-				case 2:
-					BroadcastSound( i, "RoundEnds2seconds" );
-					break;
-				case 3:
-					BroadcastSound( i, "RoundEnds3seconds" );
-					break;
-				case 4:
-					BroadcastSound( i, "RoundEnds4seconds" );
-					break;
-				case 5:
-					BroadcastSound( i, "RoundEnds5seconds" );
-					break;
-				case 6:
-					BroadcastSound( i, "RoundEnds6seconds" );
-					break;
-				case 7:
-					BroadcastSound( i, "RoundEnds7seconds" );
-					break;
-				case 8:
-					BroadcastSound( i, "RoundEnds8seconds" );
-					break;
-				case 9:
-					BroadcastSound( i, "RoundEnds9seconds" );
-					break;
-				default:
-					break;
-				}
-			}
+				BroadcastSound( i, szRoundEnd );
 		}
 	}
 

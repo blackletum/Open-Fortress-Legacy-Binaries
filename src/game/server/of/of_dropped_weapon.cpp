@@ -34,8 +34,9 @@ BEGIN_DATADESC( CTFDroppedWeapon )
 END_DATADESC();
 
 LINK_ENTITY_TO_CLASS( tf_dropped_weapon, CTFDroppedWeapon );
-
 PRECACHE_REGISTER( tf_dropped_weapon );
+
+IMPLEMENT_AUTO_LIST(ICondDroppedWeaponAutoList);
 
 CTFDroppedWeapon::CTFDroppedWeapon()
 {
@@ -252,7 +253,6 @@ void CTFDroppedWeapon::PackTouch( CBaseEntity *pOther )
 		}
 		UTIL_Remove( this );																	// Remove the dropped weapon entity
 	}
-	
 }
 
 //-----------------------------------------------------------------------------

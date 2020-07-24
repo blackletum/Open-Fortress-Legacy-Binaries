@@ -696,7 +696,7 @@ CBaseEntity *CTFWeaponBaseGun::FireRocket( CTFPlayer *pPlayer )
 	
 	GetProjectileFireSetup( pPlayer, vecOffset, &vecSrc, &angForward, false );
 
-	CTFProjectile_Rocket *pProjectile = CTFProjectile_Rocket::Create( this, vecSrc, angForward, pPlayer, pPlayer );
+	CTFProjectile_Rocket *pProjectile = CTFProjectile_Rocket::Create(this, vecSrc, angForward, pPlayer, pPlayer);
 	if ( pProjectile )
 	{
 		CTFSuperRocketLauncher *pQuad = dynamic_cast<CTFSuperRocketLauncher*>(this);

@@ -1196,8 +1196,8 @@ void CTFPlayer::Spawn()
 			m_Shared.AddCond( TF_COND_HEALTH_BUFF );
 		}
 
-		//in duel only give spawn protection the first spawn
-		if ((TFGameRules()->IsDMGamemode() || of_forcespawnprotect.GetBool() == 1) && !(TFGameRules()->IsDuelGamemode() && int(MaxSpeed()) != 1))
+		//in duel spawn protection the first spawn only
+		if ( ( TFGameRules()->IsDMGamemode() || of_forcespawnprotect.GetBool() == 1 ) && !( TFGameRules()->IsDuelGamemode() && int(MaxSpeed()) != 1 ) )
 			m_Shared.AddCond( TF_COND_SPAWNPROTECT , of_spawnprotecttime.GetFloat() );
 
 		m_Shared.SetSpawnEffect( V_atoi(engine->GetClientConVarValue(entindex(), "of_respawn_particle")) );
