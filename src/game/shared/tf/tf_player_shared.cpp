@@ -238,11 +238,11 @@ CTFPlayerShared::CTFPlayerShared()
 {
 	m_nPlayerState.Set( TF_STATE_WELCOME );
 	m_bJumping = false;
-	m_bIsTopThree = false,
-		bWatchReady = false;
-	m_bIsZombie = false,
-		m_bAirDash = false;
-	m_iAirDashCount = 0;
+	m_bIsTopThree = false;
+	bWatchReady = false;
+	m_bIsZombie = false;
+	m_bAirDash = false;
+	m_iAirDashCount = 0,
 	m_bBlockJump = false;
 	m_Hook = NULL;
 	m_flGHookProp = 0.f;
@@ -2208,7 +2208,7 @@ bool CTFPlayerShared::DoLungeCheck( void )
 	{
 		bool OnGround = m_pOuter->GetGroundEntity() != NULL;
 
-		if ( m_bIsLunging && OnGround )
+		if ( OnGround || !m_pOuter->IsAlive() )
 			m_bIsLunging = false;
 
 		CTFClaws *pWeapon = dynamic_cast<CTFClaws*>( m_pOuter->GetActiveWeapon() );

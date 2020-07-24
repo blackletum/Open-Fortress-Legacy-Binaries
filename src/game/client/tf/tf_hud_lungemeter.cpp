@@ -38,7 +38,6 @@ public:
 
 private:
 	ContinuousProgressBar *m_pChargeMeter;
-	C_TFWeaponBase *m_pHookWeapon;
 };
 
 DECLARE_HUDELEMENT( CHudLungeMeter );
@@ -81,16 +80,15 @@ bool CHudLungeMeter::ShouldDraw( void )
 		return false;
 
 	C_TFWeaponBase *pWeapon = pPlayer->GetActiveTFWeapon();
-	bool bHookWeapon = 0;
+	bool bHookWeapon = false;
 	if (pWeapon)
 	{
 		int iWeaponID = pWeapon->GetWeaponID();
 		if (iWeaponID == TF_WEAPON_GRAPPLE || iWeaponID == TF_WEAPON_ETERNALSHOTGUN)
 			bHookWeapon = true;
 	}
-	m_pHookWeapon = bHookWeapon ? pWeapon : NULL;
 
-	if (!pPlayer->m_Shared.IsZombie() && !m_pHookWeapon)
+	if (!pPlayer->m_Shared.IsZombie() && !bHookWeapon)
 		return false;
 
 	return CHudElement::ShouldDraw();
@@ -106,32 +104,49 @@ void CHudLungeMeter::OnTick( void )
 	if ( !pPlayer || !m_pChargeMeter )
 		return;
 
+	CExLabel *pLabel = dynamic_cast<CExLabel *>(FindChildByName("LungeLabel"));
+
+	if (!pLabel)
+		return;
+
 	float flProgress = 0.f;
 	if ( pPlayer->m_Shared.IsZombie() ) //zombie lunge meter
 	{
-		dynamic_cast<CExLabel *>( FindChildByName("LungeLabel") )->SetText("#TF_Lunge");
+		pLabel->SetText("#TF_Lunge");
 
 		float flProgress = pPlayer->m_Shared.GetNextLungeTime() <= gpGlobals->curtime ? 1.0f : 1.0f - (pPlayer->m_Shared.GetNextLungeTime() - gpGlobals->curtime) / of_zombie_lunge_delay.GetFloat();
 		m_pChargeMeter->SetProgress(flProgress);
 	}
-	else if (m_pHookWeapon)
+	else
 	{
-		if (m_pHookWeapon->GetWeaponID() == TF_WEAPON_GRAPPLE)
-		{
-			dynamic_cast<CExLabel *>(FindChildByName("LungeLabel"))->SetText("Charge");
+		C_TFWeaponBase *pWeapon = pPlayer->GetActiveTFWeapon();
+		if (!pWeapon)
+			return;
 
-			C_WeaponGrapple *pHook = dynamic_cast<C_WeaponGrapple *>( m_pHookWeapon );
+		int iWeaponID = pWeapon->GetWeaponID();
+
+		if (iWeaponID == TF_WEAPON_GRAPPLE)
+		{
+			pLabel->SetText("Charge");
+
+			C_WeaponGrapple *pHook = dynamic_cast<C_WeaponGrapple *>(pWeapon);
+			if (!pHook)
+				return;
+
 			flProgress = pHook->GetGrappleCharge();
 
 			//when below 25% charge set color to a not too strong red
 			m_pChargeMeter->SetFgColor(flProgress <= 0.25 ? Color(242, 67, 29, 255) : Color(255, 255, 255, 255));
 			m_pChargeMeter->SetProgress(flProgress);
 		}
-		else
+		else if (iWeaponID == TF_WEAPON_ETERNALSHOTGUN)
 		{
-			dynamic_cast<CExLabel *>(FindChildByName("LungeLabel"))->SetText("Hook");
+			pLabel->SetText("Hook");
 
-			C_TFEternalShotgun *pHook = dynamic_cast<C_TFEternalShotgun *>(m_pHookWeapon);
+			C_TFEternalShotgun *pHook = dynamic_cast<C_TFEternalShotgun *>(pWeapon);
+			if (!pHook)
+				return;
+
 			flProgress = pHook->GetGrappleCharge();
 
 			//when below 25% charge set color to a not too strong red

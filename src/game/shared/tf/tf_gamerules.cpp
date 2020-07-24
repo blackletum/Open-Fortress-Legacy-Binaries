@@ -2738,6 +2738,7 @@ void CTFGameRules::SetupOnRoundStart( void )
 			if ( pPlayer && pPlayer->GetTeamNumber() == TF_TEAM_BLUE )
 			{
 				pPlayer->m_Shared.SetZombie( false );
+				pPlayer->m_Shared.StopLunge(); //just for safety
 				pPlayer->ChangeTeam( TF_TEAM_RED, true );
 				if ( TFGameRules()->IsAllClassEnabled() ) 
 					pPlayer->SetDesiredPlayerClassIndex( TF_CLASS_MERCENARY );
