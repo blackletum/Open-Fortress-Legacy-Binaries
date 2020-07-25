@@ -1441,7 +1441,7 @@ void CTFPlayerShared::OnRemoveHaste( void )
 void CTFPlayerShared::OnAddTranq( void )
 {
 #ifdef CLIENT_DLL
-	if(!m_pOuter->m_Shared.m_flTranqEffects == 1)
+	if(!m_bTranqEffects)
 	{
 		if (m_pOuter->IsLocalPlayer() == true)
 			m_pOuter->StartTranqSound();
@@ -1459,7 +1459,7 @@ void CTFPlayerShared::OnAddTranq( void )
 void CTFPlayerShared::OnRemoveTranq( void )
 {
 #ifdef CLIENT_DLL
-	if(!m_pOuter->m_Shared.m_flTranqEffects == 1)
+	if(!m_bTranqEffects)
 	{
 		m_pOuter->StopTranqSound();
 	}
@@ -1666,7 +1666,7 @@ void CTFPlayerShared::Poison( CTFPlayer *pAttacker, float flTime )
 //-----------------------------------------------------------------------------
 // Purpose: 
 //-----------------------------------------------------------------------------
-void CTFPlayerShared::Tranq(CTFPlayer *pAttacker, float flTime, float flSpeed, int flEffects)
+void CTFPlayerShared::Tranq(CTFPlayer *pAttacker, float flTime, float flSpeed, bool bEffects)
 {
 #ifdef GAME_DLL
 	m_flTranqSlowness = flSpeed;
@@ -1679,7 +1679,7 @@ void CTFPlayerShared::Tranq(CTFPlayer *pAttacker, float flTime, float flSpeed, i
 		// Start sloweness
 		AddCond(TF_COND_TRANQ, flTime);
 		m_flTranqTime = gpGlobals->curtime;    //asap
-		m_flTranqEffects = flEffects;
+		m_bTranqEffects = bEffects;
 	}
 #endif
 }

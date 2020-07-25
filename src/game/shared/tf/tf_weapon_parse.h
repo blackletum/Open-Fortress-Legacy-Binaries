@@ -148,7 +148,7 @@ public:
 
 	// Effect Duration Amount
 	float 	m_flEffectDuration;
-	int 	m_iTranqOrLeg;
+	bool 	m_bTranqOrLeg;
 	float 	m_flSpeedReduction;
 
 	// Mag
