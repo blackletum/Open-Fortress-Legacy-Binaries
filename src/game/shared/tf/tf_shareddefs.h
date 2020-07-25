@@ -541,8 +541,9 @@ extern const char *g_szProjectileNames[];
 #define TF_BURNING_FLAME_LIFE_PYRO	0.25		// pyro only displays burning effect momentarily
 #define TF_BURNING_DMG				3
 
+// Poison
 #define TF_POISON_FREQUENCY			0.75f
-#define TF_POISON_STING_LIFE		10.f
+#define TF_POISON_STING_LIFE		8.f
 #define TF_POISON_DMG				8
 
 // disguising

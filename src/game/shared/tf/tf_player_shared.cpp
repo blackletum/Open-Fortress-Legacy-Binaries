@@ -1441,17 +1441,17 @@ void CTFPlayerShared::OnRemoveHaste( void )
 void CTFPlayerShared::OnAddTranq( void )
 {
 #ifdef CLIENT_DLL
-	if(!m_pOuter->m_Shared.m_flTranqEffects == 1)
+	if(!m_bTranqEffects)
 	{
-		m_pOuter->ParticleProp()->Create("sleepy_overhead", PATTACH_POINT_FOLLOW, "head");
-
 		if (m_pOuter->IsLocalPlayer() == true)
 			m_pOuter->StartTranqSound();
-	} 
+	}
+	/*
 	else
 	{
-		m_pOuter->ParticleProp()->Create("mark_for_death", PATTACH_POINT_FOLLOW, "head");
+		//Placeholder Stuff
 	}
+	*/
 #endif
 	m_pOuter->TeamFortress_SetSpeed();
 }
@@ -1459,15 +1459,16 @@ void CTFPlayerShared::OnAddTranq( void )
 void CTFPlayerShared::OnRemoveTranq( void )
 {
 #ifdef CLIENT_DLL
-	if(!m_pOuter->m_Shared.m_flTranqEffects == 1)
-		{
-		m_pOuter->ParticleProp()->StopParticlesNamed("sleepy_overhead", true);
+	if(!m_bTranqEffects)
+	{
 		m_pOuter->StopTranqSound();
-		}
+	}
+	/*
 	else
-		{
-		m_pOuter->ParticleProp()->StopParticlesNamed("mark_for_death", true);
-		}
+	{
+		//Placeholder Stuff
+	}
+	*/
 #endif
 	m_pOuter->TeamFortress_SetSpeed();
 }
@@ -1667,7 +1668,7 @@ void CTFPlayerShared::Poison( CTFPlayer *pAttacker, float flTime )
 //-----------------------------------------------------------------------------
 // Purpose: 
 //-----------------------------------------------------------------------------
-void CTFPlayerShared::Tranq(CTFPlayer *pAttacker, float flTime, float flSpeed, float flEffects)
+void CTFPlayerShared::Tranq(CTFPlayer *pAttacker, float flTime, float flSpeed, bool bEffects)
 {
 #ifdef GAME_DLL
 	m_flTranqSlowness = flSpeed;
@@ -1680,7 +1681,7 @@ void CTFPlayerShared::Tranq(CTFPlayer *pAttacker, float flTime, float flSpeed, f
 		// Start sloweness
 		AddCond(TF_COND_TRANQ, flTime);
 		m_flTranqTime = gpGlobals->curtime;    //asap
-		m_flTranqEffects = flEffects;
+		m_bTranqEffects = bEffects;
 	}
 #endif
 }
@@ -1730,7 +1731,6 @@ void CTFPlayerShared::OnRemovePoison( void )
 	if (m_pOuter->IsLocalPlayer())
 
 		view->SetScreenOverlayMaterial(NULL);
-		m_pOuter->ParticleProp()->StopParticlesNamed("poison_overhead", true);
 		SetPoisonEffectEnabled(false);
 #else
 	m_hPoisonAttacker = NULL;
@@ -1914,8 +1914,6 @@ void CTFPlayerShared::OnAddPoison( void )
 		C_BasePlayer *pLocal = C_BasePlayer::GetLocalPlayer();
 			pLocal->EmitSound("PlayerMedkitInfected");
 	}
-
-	m_pOuter->ParticleProp()->Create("poison_overhead", PATTACH_POINT_FOLLOW, "head");
 #endif
 }
 
