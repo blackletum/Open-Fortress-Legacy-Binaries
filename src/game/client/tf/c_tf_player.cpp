@@ -3747,7 +3747,7 @@ void C_TFPlayer::ClientThink()
 		m_pSaveMeEffect = NULL;
 	}
 	
-	bRemoveEffect = bRemoveEffect && GetPercentInvisible() > 0;
+	bRemoveEffect = bRemoveEffect || GetPercentInvisible() > 0;
 
 	// Kill the effect if either the player is dead or the enemy disguised spy is now invisible
 	if ( m_pChattingEffect && bRemoveEffect )
