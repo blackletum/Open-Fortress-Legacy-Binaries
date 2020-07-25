@@ -136,6 +136,7 @@ BEGIN_NETWORK_TABLE(CTFProjectile_BouncyRocket, DT_TFProjectile_BouncyRocket)
 END_NETWORK_TABLE()
 
 #define BOUNCYROCKET_TIMER 2.5f
+#define BOUNCYROCKET_SPEED 750.f
 #define BOUNCYROCKET_MODEL "models/weapons/w_models/w_grenade_conc.mdl"
 
 CTFProjectile_BouncyRocket *CTFProjectile_BouncyRocket::Create(CTFWeaponBase *pWeapon, const Vector &vecOrigin, const QAngle &vecAngles, CBaseEntity *pOwner, CBaseEntity *pScorer)
@@ -153,11 +154,11 @@ CTFProjectile_BouncyRocket *CTFProjectile_BouncyRocket::Create(CTFWeaponBase *pW
 	VectorNormalize(vel);
 	QAngle angle;
 	VectorAngles(vel, angle);
-	angle.x += -20.f;
+	angle.x -= 10.f;
 	if (angle.x < 270.f && angle.x > 180.f)
 		angle.x = 270.f;
 	AngleVectors(angle, &vel);
-	pRocket->SetAbsVelocity(vel * 800.f);
+	pRocket->SetAbsVelocity(vel * BOUNCYROCKET_SPEED);
 
 	pRocket->SetThink(&CTFProjectile_BouncyRocket::FlyThink);
 
@@ -167,14 +168,7 @@ CTFProjectile_BouncyRocket *CTFProjectile_BouncyRocket::Create(CTFWeaponBase *pW
 void CTFProjectile_BouncyRocket::Precache(void)
 {
 	//PrecacheScriptSound("Weapon_HandGrenade.GrenadeBounce");
-	PrecacheModel(BOUNCYROCKET_MODEL);
 	CTFBaseRocket::Precache();
-}
-
-void CTFProjectile_BouncyRocket::Spawn()
-{
-	CTFBaseRocket::Spawn();
-	SetModel(BOUNCYROCKET_MODEL);
 }
 
 void CTFProjectile_BouncyRocket::FlyThink(void)
@@ -210,12 +204,10 @@ void CTFProjectile_BouncyRocket::BounceSound(void)
 void CTFProjectile_BouncyRocket::RocketTouch(CBaseEntity *pOther)
 {
 	// Verify a correct "other."
-	if (pOther)
-	{
-		Assert(pOther);
-		if (pOther->IsSolidFlagSet(FSOLID_TRIGGER | FSOLID_VOLUME_CONTENTS))
-			return;
-	}
+	Assert(pOther);
+	if ( pOther && pOther->IsSolidFlagSet(FSOLID_TRIGGER | FSOLID_VOLUME_CONTENTS) )
+		return;
+
 	// Handle hitting skybox (disappear).
 	const trace_t *pTrace = &CBaseEntity::GetTouchTrace();
 	if (pTrace->surface.flags & SURF_SKY)

@@ -62,10 +62,10 @@ public:
 	DECLARE_NETWORKCLASS();
 
 	static CTFProjectile_BouncyRocket *Create(CTFWeaponBase *pWeapon, const Vector &vecOrigin, const QAngle &vecAngles, CBaseEntity *pOwner = NULL, CBaseEntity *pScorer = NULL);
-	virtual void Spawn();
-	virtual void RocketTouch(CBaseEntity *pOther);
-	virtual void FlyThink(void);
+
 	virtual void Precache(void);
+	virtual void FlyThink(void);
+	virtual void RocketTouch(CBaseEntity *pOther);
 	virtual void BounceSound(void);
 
 private:

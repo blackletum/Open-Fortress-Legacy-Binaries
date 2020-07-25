@@ -420,12 +420,10 @@ CBaseEntity *CTFWeaponBaseGun::FireProjectile( CTFPlayer *pPlayer )
 		pPlayer->DoAnimationEvent( PLAYERANIMEVENT_ATTACK_PRIMARY );
 		break;
 
-	/*
-	case TF_PROJECTILE_BOUNCER:
+	case TF_PROJECTILE_BOUNCYROCKET:
 		pProjectile = FireBouncer(pPlayer);
 		pPlayer->DoAnimationEvent(PLAYERANIMEVENT_ATTACK_PRIMARY);
 		break;
-	*/
 
 	case TF_PROJECTILE_NONE:
 	default:
@@ -990,9 +988,6 @@ CBaseEntity *CTFWeaponBaseGun::FireBouncer(CTFPlayer *pPlayer)
 
 	// Server only - create the rocket.
 #ifdef GAME_DLL
-
-	//	bool bCenter = m_pWeaponInfo->GetWeaponData( m_iWeaponMode ).m_bCenterfireProjectile;
-
 	int iQuakeCvar = 0;
 
 	if (!pPlayer->IsFakeClient())
@@ -1000,7 +995,7 @@ CBaseEntity *CTFWeaponBaseGun::FireBouncer(CTFPlayer *pPlayer)
 
 	Vector vecSrc;
 	QAngle angForward;
-	Vector vecOffset(23.5f, 12.0f, -3.0f);
+	Vector vecOffset(23.5f, 12.0f, -5.f);
 	if (iQuakeCvar)
 	{
 		vecOffset.x = 12.0f; //forward backwards
