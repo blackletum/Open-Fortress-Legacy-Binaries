@@ -163,9 +163,9 @@ float CTFMedkit::GetMeleeDamage( CBaseEntity *pTarget, int &iCustomDamage )
 
 				CTakeDamageInfo info;
 				info.SetAttacker(GetOwnerEntity());		// the player who operated the thing that emitted nails
-				info.SetInflictor(pPlayer);	// the weapon that emitted this projectile
+				info.SetInflictor(pPlayer);				// the weapon that emitted this projectile
 
-				pTFPlayer->m_Shared.Poison(pPlayer, (GetTFWpnData().m_flEffectDuration));
+				pTFPlayer->m_Shared.Poison( pPlayer, GetTFWpnData().m_flEffectDuration );
 #endif
 			}
 			else if ( pTarget->GetTeamNumber() == pPlayer->GetTeamNumber() )

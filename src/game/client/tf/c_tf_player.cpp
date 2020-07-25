@@ -2524,8 +2524,7 @@ END_PREDICTION_DATA()
 // C_TFPlayer implementation.
 // ------------------------------------------------------------------------------------------ //
 
-C_TFPlayer::C_TFPlayer() : 
-	m_iv_angEyeAngles( "C_TFPlayer::m_iv_angEyeAngles" )
+C_TFPlayer::C_TFPlayer() : m_iv_angEyeAngles( "C_TFPlayer::m_iv_angEyeAngles" )
 {
 	m_PlayerAnimState = CreateTFPlayerAnimState( this );
 	m_Shared.Init( this );
@@ -2849,39 +2848,23 @@ void C_TFPlayer::OnDataChanged( DataUpdateType_t updateType )
 		bCosmeticsDisabled = of_disable_cosmetics.GetBool();
 	}
 	
+	bool bAliveNotStealth = !m_Shared.InCondInvis() && IsAlive();
+
 	// update the chat bubble on the player (when he is typing a chat message)
-	CreateChattingEffect();
+	if ( bAliveNotStealth && m_bChatting && !m_pChattingEffect )
+		CreateChattingEffect();
 
-	if ( m_Shared.InCond(TF_COND_POISON) && !m_pPoisonEffect )
-	{
+	if ( bAliveNotStealth && m_Shared.InCond(TF_COND_POISON) && !m_pPoisonEffect )
 		CreatePoisonEffect();
-	}
 
-	//if (!m_Shared.InCond(TF_COND_POISON) && m_pPoisonEffect)
-	//{
-	//	DestoryPoisonEffect();
-	//}
-
-	if (m_Shared.InCond(TF_COND_TRANQ) && !m_pTranqEffect)
-	{
+	if ( bAliveNotStealth && m_Shared.InCond(TF_COND_TRANQ) && !m_pTranqEffect )
 		CreateTranqEffect();
-	}
-
-	//if (!m_Shared.InCond(TF_COND_TRANQ) && m_pTranqEffect)
-	//{
-	//	DestoryTranqEffect();
-	//}
 
 	if ( m_bSaveMeParity != m_bOldSaveMeParity )
-	{
-		// Player has triggered a save me command
 		CreateSaveMeEffect();
-	}
 
 	if ( m_Shared.InCond( TF_COND_BURNING ) && !m_pBurningSound )
-	{
 		StartBurningSound();
-	}
 
 	// See if we should show or hide nemesis icon for this player
 	bool bShouldDisplayNemesisIcon = ShouldShowNemesisIcon();
@@ -3715,7 +3698,7 @@ void C_TFPlayer::ClientThink()
 	// Ugh, this check is getting ugly
 
 	// Start smoke if we're not invisible or disguised
-	if ( !m_bRetroMode && IsPlayerClass( TF_CLASS_SPY ) && IsAlive() &&									// only on spy model when not with TFC model
+	if ( !m_bRetroMode && IsPlayerClass( TF_CLASS_SPY ) && IsAlive() &&		// only on spy model when not with TFC model
 		( !m_Shared.InCond( TF_COND_DISGUISED ) || !IsEnemyPlayer() ) &&	// disguise doesn't show for teammates
 		GetPercentInvisible() <= 0 &&										// don't start if invis
 		( pLocalPlayer != this ) && 										// don't show to local player
@@ -3754,58 +3737,35 @@ void C_TFPlayer::ClientThink()
 		UpdateWearables();
 		m_bUpdateCosmetics = false;
 	}
-	
-	if ( m_pSaveMeEffect )
-	{
-		// Kill the effect if either
-		// a) the player is dead
-		// b) the enemy disguised spy is now invisible
 
-		if ( !IsAlive() ||
-			( m_Shared.InCond( TF_COND_DISGUISED ) && IsEnemyPlayer() && ( GetPercentInvisible() > 0 ) ) )
-		{
-			ParticleProp()->StopEmissionAndDestroyImmediately( m_pSaveMeEffect );
-			m_pSaveMeEffect = NULL;
-		}
+	bool bRemoveEffect = !IsAlive() || ( m_Shared.InCond(TF_COND_DISGUISED) && IsEnemyPlayer() && GetPercentInvisible() > 0 );
+
+	// Kill the effect if either the player is dead or the enemy disguised spy is now invisible
+	if ( m_pSaveMeEffect && bRemoveEffect )
+	{
+		ParticleProp()->StopEmissionAndDestroyImmediately( m_pSaveMeEffect );
+		m_pSaveMeEffect = NULL;
 	}
 	
-	if (m_pPoisonEffect &&
-		(!IsAlive() ||(GetPercentInvisible() > 0) || !m_Shared.InCond(TF_COND_POISON))
-		)
+	// Kill the effect if either the player is dead, the spy is now invisible, if player is no longer poisoned
+	if ( m_pPoisonEffect && ( bRemoveEffect || !m_Shared.InCond(TF_COND_POISON) ) )
 	{
-		// Kill the effect if either
-		// a) the player is dead
-		// b) the spy is now invisible
-		// c) if player is no longer poisoned
-			ParticleProp()->StopEmissionAndDestroyImmediately(m_pPoisonEffect);
-			m_pPoisonEffect = NULL;
-	
+		ParticleProp()->StopEmissionAndDestroyImmediately(m_pPoisonEffect);
+		m_pPoisonEffect = NULL;
 	}
 
-	if (m_pTranqEffect &&
-		(!IsAlive() || (GetPercentInvisible() > 0) || !m_Shared.InCond(TF_COND_TRANQ))
-		)
+	// Kill the effect if either the player is dead, the spy is now invisible, if player is no longer tranqed
+	if ( m_pTranqEffect && ( bRemoveEffect || !m_Shared.InCond(TF_COND_TRANQ) ) )
 	{
-		// Kill the effect if either
-		// a) the player is dead
-		// b) the spy is now invisible
-		// c) if player is no longer tranqed
 		ParticleProp()->StopEmissionAndDestroyImmediately(m_pTranqEffect);
 		m_pTranqEffect = NULL;
-
 	}
 
-	if ( m_pChattingEffect )
+	// Kill the effect if either the player is dead or the enemy disguised spy is now invisible
+	if ( m_pChattingEffect && bRemoveEffect )
 	{
-		// Kill the effect if either
-		// a) the player is dead
-		// b) the enemy disguised spy is now invisible
-
-		if ( !IsAlive() && ( GetPercentInvisible() > 0 ) )
-		{
-			ParticleProp()->StopEmissionAndDestroyImmediately( m_pChattingEffect );
-			m_pChattingEffect = NULL;
-		}
+		ParticleProp()->StopEmissionAndDestroyImmediately( m_pChattingEffect );
+		m_pChattingEffect = NULL;
 	}
 }
 
@@ -5096,16 +5056,9 @@ void C_TFPlayer::CreateSaveMeEffect( void )
 	C_TFPlayer *pLocalPlayer = C_TFPlayer::GetLocalTFPlayer();
 
 	// If I'm disguised as the enemy, play to all players
-	if ( m_Shared.InCond( TF_COND_DISGUISED ) && m_Shared.GetDisguiseTeam() != GetTeamNumber() )
-	{
-		// play to all players
-	}
-	else
-	{
-		// only play to teammates
-		if ( pLocalPlayer && pLocalPlayer->GetTeamNumber() != GetTeamNumber() )
-			return;
-	}
+	bool bDisguised = m_Shared.InCond(TF_COND_DISGUISED) && m_Shared.GetDisguiseTeam() != GetTeamNumber();
+	if ( !bDisguised && pLocalPlayer && pLocalPlayer->GetTeamNumber() != GetTeamNumber() )
+		return;
 
 	if ( m_pSaveMeEffect )
 	{
@@ -5124,7 +5077,7 @@ void C_TFPlayer::CreateSaveMeEffect( void )
 	}
 
 	// If the local player has a medigun, add this player to our list of medic callers
-	if ( pLocalPlayer && pLocalPlayer->IsAlive() == true )
+	if ( pLocalPlayer && pLocalPlayer->IsAlive() )
 	{
 		CTFWeaponBase *pWpn = (CTFWeaponBase *)Weapon_OwnsThisID( TF_WEAPON_MEDIGUN );
 		CTFWeaponBase *pWpn2 = (CTFWeaponBase *)Weapon_OwnsThisID( TFC_WEAPON_MEDKIT );
@@ -5147,124 +5100,46 @@ void C_TFPlayer::CreateSaveMeEffect( void )
 				CTFMedicCallerPanel::AddMedicCaller( this, 5.0, vecPos );
 			}
 		}
-		else
-		{
-			return;
-		}
 	}
 }
 
+//-----------------------------------------------------------------------------
+// Purpose:  Creation Of Chatting Overhead Effect
+//-----------------------------------------------------------------------------
 void C_TFPlayer::CreateChattingEffect(void)
 {
 	// Don't create them for the local player
-	// if ( IsLocalPlayer() && !ShouldDrawLocalPlayer() )
 	if ( IsLocalPlayer() )
 		return;
 
-	// If I'm disguised as the enemy, don't create
-	// if ( !m_Shared.InCond( TF_COND_DISGUISED ) && m_bChatting )
-	if ( ( !m_Shared.InCondInvis() ) && m_bChatting && IsAlive() )
-	{
-		if ( !m_pChattingEffect ) 
-		{
-			// this uses the unused particle
-			m_pChattingEffect = ParticleProp()->Create( "speech_typing", PATTACH_POINT_FOLLOW, "head" );
-		}
-	}
-	// kill the chat bubble if we aren't typing anymore
-	else
-	{
-		if ( m_pChattingEffect )
-		{
-			ParticleProp()->StopEmissionAndDestroyImmediately( m_pChattingEffect );
-			m_pChattingEffect = NULL;
-		}
-	}
+	m_pChattingEffect = ParticleProp()->Create( "speech_typing", PATTACH_POINT_FOLLOW, "head" );
 }
+
 //-----------------------------------------------------------------------------
 // Purpose:  Creation Of Poison Overhead Effect
 //-----------------------------------------------------------------------------
 void C_TFPlayer::CreatePoisonEffect(void)
 {
 	// Don't create them for the local player
-	if (IsLocalPlayer())
+	if ( IsLocalPlayer() )
 		return;
 
-	// If I'm stealthed, don't create
-	if ((!m_Shared.InCondInvis()) && m_Shared.InCond(TF_COND_POISON) && IsAlive())
-	{
-		if (!m_pPoisonEffect)
-		{
-			m_pPoisonEffect = ParticleProp()->Create("poison_overhead", PATTACH_POINT_FOLLOW, "head");
-		}
-	}
-	else
-	{
-		if (m_pPoisonEffect)
-		{
-			ParticleProp()->StopEmissionAndDestroyImmediately(m_pPoisonEffect);
-			m_pPoisonEffect = NULL;
-		}
-	}
+	m_pPoisonEffect = ParticleProp()->Create("poison_overhead", PATTACH_POINT_FOLLOW, "head");
 }
 
-//-----------------------------------------------------------------------------
-// Purpose:  Killing Of Poison Overhead Effect
-//-----------------------------------------------------------------------------
-void C_TFPlayer::DestoryPoisonEffect(void)
-{
-	// Don't create them for the local player
-	if (m_pPoisonEffect)
-	{
-		ParticleProp()->StopEmissionAndDestroyImmediately(m_pPoisonEffect);
-		m_pPoisonEffect = NULL;
-	}
-}
 //-----------------------------------------------------------------------------
 // Purpose:  Creation Of Tranq Overhead Effect
 //-----------------------------------------------------------------------------
 void C_TFPlayer::CreateTranqEffect(void)
 {
 	// Don't create them for the local player
-	if (IsLocalPlayer())
+	if ( IsLocalPlayer() )
 		return;
 
-	// If I'm stealthed, don't create
-	if ((!m_Shared.InCondInvis()) && m_Shared.InCond(TF_COND_TRANQ) && IsAlive())
-	{
-		if (!m_pTranqEffect)
-		{
-			if (!m_Shared.m_flTranqEffects == 1)
-			{
-			m_pTranqEffect = ParticleProp()->Create("sleepy_overhead", PATTACH_POINT_FOLLOW, "head");
-			}
-			else
-			{
-			m_pTranqEffect = ParticleProp()->Create("mark_for_death", PATTACH_POINT_FOLLOW, "head");
-			}
-		}
-	}
+	if (!m_Shared.m_flTranqEffects == 1)
+		m_pTranqEffect = ParticleProp()->Create("sleepy_overhead", PATTACH_POINT_FOLLOW, "head");
 	else
-	{
-		if (m_pTranqEffect)
-		{
-			ParticleProp()->StopEmissionAndDestroyImmediately(m_pTranqEffect);
-			m_pTranqEffect = NULL;
-		}
-	}
-}
-
-//-----------------------------------------------------------------------------
-// Purpose:  Killing Of Tranq Overhead Effect
-//-----------------------------------------------------------------------------
-void C_TFPlayer::DestoryTranqEffect(void)
-{
-	// Don't create them for the local player
-	if (m_pTranqEffect)
-	{
-		ParticleProp()->StopEmissionAndDestroyImmediately(m_pTranqEffect);
-		m_pTranqEffect = NULL;
-	}
+		m_pTranqEffect = ParticleProp()->Create("mark_for_death", PATTACH_POINT_FOLLOW, "head");
 }
 
 //-----------------------------------------------------------------------------

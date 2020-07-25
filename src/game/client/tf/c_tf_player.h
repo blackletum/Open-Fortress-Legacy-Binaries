@@ -156,9 +156,7 @@ public:
 	void CreateSaveMeEffect( void );
 	void CreateChattingEffect(void);
 	void CreatePoisonEffect(void);
-	void DestoryPoisonEffect(void);
 	void CreateTranqEffect(void);
-	void DestoryTranqEffect(void);
 
 	CGlowObject			*m_pGlowEffect;
 

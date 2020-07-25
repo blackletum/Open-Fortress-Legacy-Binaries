@@ -1445,11 +1445,13 @@ void CTFPlayerShared::OnAddTranq( void )
 	{
 		if (m_pOuter->IsLocalPlayer() == true)
 			m_pOuter->StartTranqSound();
-	} 
+	}
+	/*
 	else
 	{
-	//Placeholder Stuff
+		//Placeholder Stuff
 	}
+	*/
 #endif
 	m_pOuter->TeamFortress_SetSpeed();
 }
@@ -1458,13 +1460,15 @@ void CTFPlayerShared::OnRemoveTranq( void )
 {
 #ifdef CLIENT_DLL
 	if(!m_pOuter->m_Shared.m_flTranqEffects == 1)
-		{
+	{
 		m_pOuter->StopTranqSound();
-		}
+	}
+	/*
 	else
-		{
-		//PlaceHolderStuff
-		}
+	{
+		//Placeholder Stuff
+	}
+	*/
 #endif
 	m_pOuter->TeamFortress_SetSpeed();
 }
