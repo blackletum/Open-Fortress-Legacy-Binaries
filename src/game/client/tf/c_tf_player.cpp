@@ -3738,15 +3738,24 @@ void C_TFPlayer::ClientThink()
 		m_bUpdateCosmetics = false;
 	}
 
-	bool bRemoveEffect = !IsAlive() || ( m_Shared.InCond(TF_COND_DISGUISED) && IsEnemyPlayer() && GetPercentInvisible() > 0 );
+	bool bRemoveEffect = !IsAlive();
 
 	// Kill the effect if either the player is dead or the enemy disguised spy is now invisible
-	if ( m_pSaveMeEffect && bRemoveEffect )
+	if (m_pSaveMeEffect && ( bRemoveEffect || ( m_Shared.InCond(TF_COND_DISGUISED) && IsEnemyPlayer() && GetPercentInvisible() > 0 ) ) )
 	{
 		ParticleProp()->StopEmissionAndDestroyImmediately( m_pSaveMeEffect );
 		m_pSaveMeEffect = NULL;
 	}
 	
+	bRemoveEffect = bRemoveEffect && GetPercentInvisible() > 0;
+
+	// Kill the effect if either the player is dead or the enemy disguised spy is now invisible
+	if ( m_pChattingEffect && bRemoveEffect )
+	{
+		ParticleProp()->StopEmissionAndDestroyImmediately(m_pChattingEffect);
+		m_pChattingEffect = NULL;
+	}
+
 	// Kill the effect if either the player is dead, the spy is now invisible, if player is no longer poisoned
 	if ( m_pPoisonEffect && ( bRemoveEffect || !m_Shared.InCond(TF_COND_POISON) ) )
 	{
@@ -3759,13 +3768,6 @@ void C_TFPlayer::ClientThink()
 	{
 		ParticleProp()->StopEmissionAndDestroyImmediately(m_pTranqEffect);
 		m_pTranqEffect = NULL;
-	}
-
-	// Kill the effect if either the player is dead or the enemy disguised spy is now invisible
-	if ( m_pChattingEffect && bRemoveEffect )
-	{
-		ParticleProp()->StopEmissionAndDestroyImmediately( m_pChattingEffect );
-		m_pChattingEffect = NULL;
 	}
 }
 
