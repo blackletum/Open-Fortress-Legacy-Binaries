@@ -534,6 +534,12 @@ public:
 	CUtlVector< PowerupHandle >	m_hPowerups;
 	CUtlVector< WeaponHandle >	m_hSuperWeapons;
 
+	void				ResetShieldDamage();
+
+private:
+	int					m_iShieldDamage;
+
+public:
 	WeaponHandle m_hWeaponInSlot[10][20]; // 20 pos cuz melee my ass
 
 	//medals

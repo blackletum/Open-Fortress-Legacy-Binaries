@@ -499,6 +499,8 @@ CTFPlayer::CTFPlayer()
 	m_bIsJuggernaught = false;
 	m_iJuggernaughtScore = 0;
 	m_iJuggernaughtTimer = 0;
+
+	m_iShieldDamage = 0;
 }
 
 
@@ -1197,7 +1199,7 @@ void CTFPlayer::Spawn()
 		}
 
 		//in duel spawn protection the first spawn only
-		if ( ( TFGameRules()->IsDMGamemode() || of_forcespawnprotect.GetBool() == 1 ) && !( TFGameRules()->IsDuelGamemode() && int(MaxSpeed()) != 1 ) )
+		if ( ( TFGameRules()->IsDMGamemode() || of_forcespawnprotect.GetBool() == 1 ) && !( TFGameRules()->IsDuelGamemode() && int( MaxSpeed() ) != 1 ) )
 			m_Shared.AddCond( TF_COND_SPAWNPROTECT , of_spawnprotecttime.GetFloat() );
 
 		m_Shared.SetSpawnEffect( V_atoi(engine->GetClientConVarValue(entindex(), "of_respawn_particle")) );
@@ -4629,10 +4631,7 @@ int CTFPlayer::OnTakeDamage( const CTakeDamageInfo &inputInfo )
 {
 	CTakeDamageInfo info = inputInfo;
 
-	if ( GetFlags() & FL_GODMODE )
-		return 0;
-
-	if ( IsInCommentaryMode() )
+	if ( (GetFlags() & FL_GODMODE) || IsInCommentaryMode() )
 		return 0;
 
 	if ( m_debugOverlays & OVERLAY_BUDDHA_MODE ) 
@@ -4645,10 +4644,7 @@ int CTFPlayer::OnTakeDamage( const CTakeDamageInfo &inputInfo )
 	}
 
 	// Early out if there's no damage
-	if ( !info.GetDamage() )
-		return 0;
-
-	if ( !IsAlive() )
+	if ( !info.GetDamage() || !IsAlive() )
 		return 0;
 
 	int iHealthBefore = GetHealth();
@@ -4749,8 +4745,34 @@ int CTFPlayer::OnTakeDamage( const CTakeDamageInfo &inputInfo )
 			return 0;
 		}
 	}
+
+	// explosive weapons deal no self damage in certain game modes
+	int iSelfDamageVar = of_selfdamage.GetInt();
+	if ( (bitsDamage & DMG_HALF_FALLOFF) && pAttacker == this && iSelfDamageVar < 1 )
+	{
+		if (!iSelfDamageVar)
+		{
+			ApplyDamageKnockback(info);
+			return 0;
+		}
+		else
+		{
+			int iMutator = TFGameRules()->GetMutator();
+			if (iMutator == CLAN_ARENA || iMutator == UNHOLY_TRINITY || iMutator == ROCKET_ARENA)
+			{
+				ApplyDamageKnockback(info);
+				return 0;
+			}
+		}
+	}
+
+	CTFPlayer *pTFAttacker = ToTFPlayer(pAttacker);
+	CTFWeaponBase *pWeapon = pTFAttacker ? pTFAttacker->GetActiveTFWeapon() : NULL;
+	int iWeaponID = pWeapon ? pWeapon->GetWeaponID() : 0;
+	bool bIsPlayer = pAttacker && pAttacker->IsPlayer();
+
 	// If we're not damaging ourselves, apply randomness
-	if ( info.GetAttacker() != this && !(bitsDamage & (DMG_DROWN | DMG_FALL)) ) 
+	if ( pAttacker != this && !(bitsDamage & (DMG_DROWN | DMG_FALL)) ) 
 	{
 		float flDamage = 0.f;
 		
@@ -4767,7 +4789,7 @@ int CTFPlayer::OnTakeDamage( const CTakeDamageInfo &inputInfo )
 				flDamage = info.GetDamage() * TF_DAMAGE_CRIT_MULTIPLIER;
 
 			// Show the attacker, unless the target is a disguised spy
-			if ( info.GetAttacker() && info.GetAttacker()->IsPlayer() && !m_Shared.InCond( TF_COND_DISGUISED ) )
+			if (bIsPlayer && !m_Shared.InCond(TF_COND_DISGUISED))
 			{
 				CEffectData	data;
 				data.m_nHitBox = GetParticleSystemIndex( "crit_text" );
@@ -4775,13 +4797,13 @@ int CTFPlayer::OnTakeDamage( const CTakeDamageInfo &inputInfo )
 				data.m_vAngles = vec3_angle;
 				data.m_nEntIndex = 0;
 
-				CSingleUserRecipientFilter filter( (CBasePlayer*)info.GetAttacker() );
+				CSingleUserRecipientFilter filter( (CBasePlayer*)pAttacker );
 				te->DispatchEffect( filter, 0.0, data.m_vOrigin, "ParticleEffect", data );
 
 				EmitSound_t params;
 				params.m_flSoundTime = 0;
 				params.m_pSoundName = "TFPlayer.CritHit";
-				EmitSound( filter, info.GetAttacker()->entindex(), params );
+				EmitSound( filter, pAttacker->entindex(), params );
 			}
 
 			// Burn sounds are handled in ConditionThink()
@@ -4806,87 +4828,61 @@ int CTFPlayer::OnTakeDamage( const CTakeDamageInfo &inputInfo )
 
 				if ( bitsDamage & DMG_USEDISTANCEMOD )
 				{
-					float flDistance = max( 1.0, (WorldSpaceCenter() - info.GetAttacker()->WorldSpaceCenter()).Length() );
+					float flDistance = max( 1.0, (WorldSpaceCenter() - pAttacker->WorldSpaceCenter()).Length() );
 					float flOptimalDistance = 512.0;
 					// Rocket launcher & Scattergun have different short range bonuses
-					if ( info.GetAttacker() && info.GetAttacker()->IsPlayer() )
-					{
-						CTFWeaponBase *pWeapon = ToTFPlayer( info.GetAttacker() )->GetActiveTFWeapon();
-						if ( pWeapon )
-						{
-							if ( pWeapon->GetWeaponID() == TF_WEAPON_ASSAULTRIFLE )
-							{
-								if ( flDistance > 512 )
-								{
-									flDistance = 512;
-								}
-							}
-						}
-					}
+					if ( bIsPlayer && iWeaponID == TF_WEAPON_ASSAULTRIFLE )
+						flDistance = min(flDistance, 512);
+
 					flCenter = RemapValClamped( flDistance / flOptimalDistance, 0.0, 2.0, 1.0, 0.0 );
-					if ( bitsDamage & DMG_NOCLOSEDISTANCEMOD )
-					{
-						if ( flCenter > 0.5 )
-						{
-							// Reduce the damage bonus at close range
-							flCenter = RemapVal( flCenter, 0.5, 1.0, 0.5, 0.65 );
-						}
-					}
+					if ( (bitsDamage & DMG_NOCLOSEDISTANCEMOD) && flCenter > 0.5 )
+						flCenter = RemapVal( flCenter, 0.5, 1.0, 0.5, 0.65 );
+
 					flMin = max( 0.0, flCenter - 0.25 );
 					flMax = min( 1.0, flCenter + 0.25 );
+
 					if ( bDebug )
 					{
 						Warning("    RANDOM: Dist %.2f, Ctr: %.2f, Min: %.2f, Max: %.2f\n", flDistance, flCenter, flMin, flMax );
 					}
 				}
-
+				
 				//Msg("Range: %.2f - %.2f\n", flMin, flMax );
 				float flRandomVal = tf_damage_disablespread.GetBool() ? flCenter : RandomFloat( flMin, flMax );
 
-				if ( flRandomVal > 0.5 )
+				if ( flRandomVal > 0.5 && bIsPlayer && pWeapon )
 				{
-					// Rocket launcher & Scattergun have different short range bonuses
-					if ( info.GetAttacker() && info.GetAttacker()->IsPlayer() )
+					switch ( iWeaponID )
 					{
-						CTFWeaponBase *pWeapon = ToTFPlayer( info.GetAttacker() )->GetActiveTFWeapon();
-						if ( pWeapon )
-						{
-							if ( pWeapon->GetWeaponID() == TF_WEAPON_ROCKETLAUNCHER || pWeapon->GetWeaponID() == TF_WEAPON_ROCKETLAUNCHER_DM || pWeapon->GetWeaponID() == TF_WEAPON_SUPER_ROCKETLAUNCHER)
-							{
-								// Rocket launcher only has half the bonus of the other weapons at short range
-								flRandomDamage *= 0.5;
-							}
-							else if ( pWeapon->GetWeaponID() == TF_WEAPON_SCATTERGUN )
-							{
-								// Scattergun gets 50% bonus of other weapons at short range
-								flRandomDamage *= 1.5;
-							}
-							else if ( pWeapon->GetWeaponID() == TF_WEAPON_SUPERSHOTGUN )
-							{
-								// SSG gets 100% bonus of other weapons at short range
-								flRandomDamage *= 2;
-							}					
-						}
+					// Rocket launcher only has half the bonus of the other weapons at short range
+					case TF_WEAPON_ROCKETLAUNCHER:
+					case TF_WEAPON_ROCKETLAUNCHER_DM:
+					case TF_WEAPON_SUPER_ROCKETLAUNCHER:
+						flRandomDamage *= 0.5f;
+						break;
+							
+					// Scattergun gets 50% bonus of other weapons at short range
+					case TF_WEAPON_SCATTERGUN:
+						flRandomDamage *= 1.5f;
+						break;
+
+					// SSG gets 100% bonus of other weapons at short range
+					case TF_WEAPON_SUPERSHOTGUN:
+						flRandomDamage *= 2.f;
+						break;
+
+					default:
+						break;
 					}
 				}
 
 				float flOut = SimpleSplineRemapValClamped( flRandomVal, 0, 1, -flRandomDamage, flRandomDamage );
 				flDamage = info.GetDamage() + flOut;
-
-				/*
-				for ( float flVal = flMin; flVal <= flMax; flVal += 0.05 )
-				{
-					float flOut = SimpleSplineRemapValClamped( flVal, 0, 1, -flRandomDamage, flRandomDamage );
-					Msg("Val: %.2f, Out: %.2f, Dmg: %.2f\n", flVal, flOut, info.GetDamage() + flOut );
-				}
-				*/
 			}
 			
 			// Burn sounds are handled in ConditionThink()
 			if ( !(bitsDamage & DMG_BURN ) )
-			{
 				SpeakConceptIfAllowed( MP_CONCEPT_HURT );
-			}
 		}
 
 		info.SetDamage( flDamage );
@@ -4897,47 +4893,6 @@ int CTFPlayer::OnTakeDamage( const CTakeDamageInfo &inputInfo )
 		// this deals less damage in infection
 		info.SetDamage( info.GetDamage() * 0.5 );
 	}
-
-	// explosive weapons (which all use HALF_FALLOFF dmg) deal less damage depending on circumstances
-	if ( bitsDamage & DMG_HALF_FALLOFF ) 
-	{
-		float flAdjustedDamage = 1.0f;	
-	
-		if ( info.GetAttacker() == this )
-		{
-			switch ( of_selfdamage.GetInt() )
-			{
-				case -1:
-					switch ( TFGameRules()->GetMutator() )
-					{	
-					case CLAN_ARENA:
-					case UNHOLY_TRINITY:
-					case ROCKET_ARENA:
-							flAdjustedDamage = 0.0f;
-							break;
-					default:
-						break;
-					}
-					break;
-				case 0:
-					flAdjustedDamage = flAdjustedDamage * 0.0f;
-					break;
-				default:
-					break;
-			}
-		}
-
-		// apply damage knockback anyway if the adjustment leads to zero damage and, if attack is coming from ally, it is not friendly fire
-		bool bIsAlly = pAttacker && pAttacker->GetTeamNumber() == GetTeamNumber() && pAttacker->GetTeamNumber() != TF_TEAM_MERCENARY;
-
-		if ( flAdjustedDamage <= 0.0f && !( bIsAlly && !of_teamplay_knockback.GetBool() ) )
-			ApplyDamageKnockback( info );
-
-		info.SetDamage( info.GetDamage() * flAdjustedDamage );
-	}
-
-	if( info.GetDamage() > 0.0f && GetHealth() <= m_Shared.GetDefaultHealth() + m_Shared.m_flMegaOverheal )
-		m_Shared.m_flMegaOverheal = max( 0.0f, m_Shared.m_flMegaOverheal - info.GetDamage() );
 
 	// NOTE: Deliberately skip base player OnTakeDamage, because we don't want all the stuff it does re: suit voice
 	bTookDamage = CBaseCombatCharacter::OnTakeDamage( info );
@@ -4989,74 +4944,38 @@ int CTFPlayer::OnTakeDamage( const CTakeDamageInfo &inputInfo )
 	m_DmgTake += (int)info.GetDamage();
 
 	// Reset damage time countdown for each type of time based damage player just sustained
+	int iDamage = 0;
 	for (int i = 0; i < CDMG_TIMEBASED; i++)
 	{
 		// Make sure the damage type is really time-based.
 		// This is kind of hacky but necessary until we setup DamageType as an enum.
-		int iDamage = ( DMG_PARALYZE << i );
+		iDamage = ( DMG_PARALYZE << i );
 		if ( ( info.GetDamageType() & iDamage ) && g_pGameRules->Damage_IsTimeBased( iDamage ) )
-		{
 			m_rgbTimeBasedDamage[i] = 0;
-		}
 	}
 
 	// No view punch sounds with teamplay knockback enabled but no friendlyfire
-	if ( of_teamplay_knockback.GetBool() && !friendlyfire.GetBool() )
-	{
-		CTFPlayer *pAttacker = (CTFPlayer*)ToTFPlayer( info.GetAttacker() );
+	bool bNoPunchSound = of_teamplay_knockback.GetBool() && !friendlyfire.GetBool();
+	bool bAlly = pAttacker && pAttacker != this && pAttacker->IsPlayer() && pAttacker->GetTeamNumber() != TF_TEAM_MERCENARY && pAttacker->GetTeamNumber() == GetTeamNumber();
 
-		if ( pAttacker )
-		{
-			if ( info.GetAttacker() != this && info.GetAttacker()->IsPlayer() 
-				&& info.GetAttacker()->GetTeamNumber() != TF_TEAM_MERCENARY 
-				&& info.GetAttacker()->GetTeamNumber() == GetTeamNumber() )
-			{
-				// bruh
-			}
-			else 
-			{
-				// Display any effect associate with this damage type
-				DamageEffect( info.GetDamage(),bitsDamage );
-
-				m_bitsDamageType |= bitsDamage; // Save this so we can report it to the client
-				m_bitsHUDDamage = -1;  // make sure the damage bits get resent
-
-				if ( !( bitsDamage & DMG_DISSOLVE ) )
-					m_Local.m_vecPunchAngle.SetX( -2 );
-
-				PainSound( info );
-
-				PlayFlinch( info );
-
-				int iHealthBoundary = (GetMaxHealth() * 0.25);
-				if ( GetHealth() <= iHealthBoundary && iHealthBefore > iHealthBoundary )
-				{
-					ClearExpression();
-				}
-			}
-		}
-	}
-	else
+	if ( !bNoPunchSound || ( bNoPunchSound && !bAlly ) )
 	{
 		// Display any effect associate with this damage type
-		DamageEffect( info.GetDamage(),bitsDamage );
+		DamageEffect( info.GetDamage(), bitsDamage );
 
 		m_bitsDamageType |= bitsDamage; // Save this so we can report it to the client
 		m_bitsHUDDamage = -1;  // make sure the damage bits get resent
 
-		if ( !( bitsDamage & DMG_DISSOLVE ) )
-			m_Local.m_vecPunchAngle.SetX( -2 );
+		if ( ! (bitsDamage & DMG_DISSOLVE ) )
+			m_Local.m_vecPunchAngle.SetX(-2);
 
-		PainSound( info );
+		PainSound(info);
 
-		PlayFlinch( info );
+		PlayFlinch(info);
 
-		// Detect drops below 25% health and restart expression, so that characters look worried.
-		int iHealthBoundary = (GetMaxHealth() * 0.25);
+		int iHealthBoundary = GetMaxHealth() * 0.25;
 		if ( GetHealth() <= iHealthBoundary && iHealthBefore > iHealthBoundary )
-		{
 			ClearExpression();
-		}
 	}
 
 	CTF_GameStats.Event_PlayerDamage( this, info, iHealthBefore - GetHealth() );
@@ -5264,19 +5183,44 @@ int CTFPlayer::OnTakeDamage_Alive( const CTakeDamageInfo &info )
 	bool bIgniting = false;
 
 	// Apply a damage force unless player is protected from that damage
-	if ( m_takedamage != DAMAGE_EVENTS_ONLY && !m_Shared.InCondUber() && !( bIsAlly && !friendlyfire.GetBool() ) )
+	bool bNoFriendlyFire = bIsAlly && !friendlyfire.GetBool();
+	bool bUber = m_Shared.InCondUber();
+	float flScaledDamage = 0.f;
+	if ( m_takedamage != DAMAGE_EVENTS_ONLY && !bUber && !bNoFriendlyFire )
 	{
 		// Start burning if we took ignition damage
 		bIgniting = ( ( info.GetDamageType() & DMG_IGNITE ) && ( GetWaterLevel() < WL_Waist ) );
 
-		if ( !info.GetDamage() )
+		if ( info.GetDamage() <= 0.f )
 			return 0;
 
+		//Scale damage if player has a shield powerup, duel has a fixed multiplier
+		float flScaledDamage = info.GetDamage();
+		if ( m_Shared.InCondShield() )
+		{
+			if (TFGameRules()->IsDuelGamemode())
+			{
+				flScaledDamage *= 0.5f;
+				m_iShieldDamage += flScaledDamage;
+
+				if (m_iShieldDamage >= 150)
+					m_Shared.RemoveCondShield();
+			}
+			else
+			{
+				flScaledDamage *= of_resistance.GetFloat();
+			}
+		}
+
 		// Take damage - round to the nearest integer.
-		m_iHealth -= info.GetDamage() * ( m_Shared.InCondShield() ? of_resistance.GetFloat() : 1.f ) + 0.5f;
+		m_iHealth -= flScaledDamage + 0.5f;
 	}
 
 	m_flLastDamageTime = gpGlobals->curtime;
+
+	//adjust the overheal according to damage taken
+	if ( GetHealth() <= m_Shared.GetDefaultHealth() + m_Shared.m_flMegaOverheal )
+		m_Shared.m_flMegaOverheal = max( 0.0f, m_Shared.m_flMegaOverheal - flScaledDamage );
 
 	if ( !pAttacker )
 		return 0;
@@ -5317,42 +5261,36 @@ int CTFPlayer::OnTakeDamage_Alive( const CTakeDamageInfo &info )
 	}
 
 	//No bleeding while invul or disguised.
-	bool bBleed = ( m_Shared.InCond( TF_COND_DISGUISED ) == false && m_Shared.InCondUber() == false );
+	bool bBleed = !m_Shared.InCond(TF_COND_DISGUISED) && !bUber;
 	if ( bBleed && pAttacker->IsPlayer() )
 	{
 		CTFWeaponBase *pWeapon = ToTFPlayer( pAttacker )->GetActiveTFWeapon();
 		if ( pWeapon && pWeapon->GetWeaponID() == TF_WEAPON_FLAMETHROWER )
-		{
 			bBleed = false;
-		}
 	}
 	
 	// DMG_GENERIC and DMG_DISSOLVE must not bleed
-	if ( ( info.GetDamageType() & DMG_GENERIC || info.GetDamageType() & DMG_DISSOLVE ) )
+	if ( info.GetDamageType() & (DMG_GENERIC | DMG_DISSOLVE ) )
 		bBleed = false;
 
-	if ( bBleed )
+	if ( bBleed && !bNoFriendlyFire )
 	{
-		if ( pAttacker && pAttacker->GetTeamNumber() == GetTeamNumber() && !friendlyfire.GetBool() && pAttacker->GetTeamNumber() != TF_TEAM_MERCENARY )
-		{
-			// i know, this sucks, but it doesnt work if I invert it, feel free to fix it if you can
-		}
-		else
-		{
-			Vector vDamagePos = info.GetDamagePosition();
+		Vector vDamagePos = info.GetDamagePosition();
 
-			if ( vDamagePos == vec3_origin )
-			{
-				vDamagePos = WorldSpaceCenter();
-			}
+		if ( vDamagePos == vec3_origin )
+			vDamagePos = WorldSpaceCenter();
 
-			CPVSFilter filter( vDamagePos );
-			TE_TFBlood( filter, 0.0, vDamagePos, -vecDir, entindex() );
-		}
+		CPVSFilter filter( vDamagePos );
+		TE_TFBlood( filter, 0.0, vDamagePos, -vecDir, entindex() );
 	}
 
 	// Done.
 	return 1;
+}
+
+void CTFPlayer::ResetShieldDamage()
+{
+	m_iShieldDamage = 0;
 }
 
 //-----------------------------------------------------------------------------

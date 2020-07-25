@@ -1565,6 +1565,8 @@ void CTFPlayerShared::OnRemoveShield( void )
 	{
 		view->SetScreenOverlayMaterial( NULL );
 	}
+#else
+	m_pOuter->ResetShieldDamage();
 #endif
 }
 
@@ -3112,7 +3114,7 @@ void CTFPlayer::TeamFortress_SetSpeed()
 	}
 
 	// Check for any reason why they can't move at all
-	if ( ( playerclass == TF_CLASS_UNDEFINED || TFGameRules()->InRoundRestart() ) && !TFGameRules()->IsDuelGamemode() )
+	if ( playerclass == TF_CLASS_UNDEFINED || TFGameRules()->InRoundRestart() )
 	{
 		SetAbsVelocity( vec3_origin );
 		SetMaxSpeed( 1 );
