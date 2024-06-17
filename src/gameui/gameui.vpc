@@ -6,7 +6,7 @@
 
 $macro SRCDIR		".."
 
-$Macro GAMENAME   "open_fortress"
+$Macro GAMENAME   "ofc"
 
 $MacroRequired "GAMENAME"
 

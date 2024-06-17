@@ -1035,10 +1035,10 @@ int CHLClient::Init(CreateInterfaceFn appSystemFactory, CreateInterfaceFn physic
 #endif
 	
 #ifdef OF_CLIENT_DLL
-	if ( V_strstr( COM_GetModDirectory(), "open_fortress" ) == 0 )
+	if ( V_strstr( COM_GetModDirectory(), "ofc" ) == 0 )
 	{
 		ConColorMsg( Color( 60, 238, 60, 255 ), "%s\n", COM_GetModDirectory() );
-		Error("Error! The game's directory must have the exact name \"open_fortress\" in order for the mod to work correctly. Please change it.");
+		Error("Error! The game's directory must have the exact name \"ofc\" in order for the mod to work correctly. Please change it.");
 	}
 #endif
 
